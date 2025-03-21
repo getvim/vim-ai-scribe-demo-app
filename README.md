@@ -33,7 +33,7 @@ The applications in different frameworks demonstrates how to use the VimOS.js Ca
 
 ## Vim AI Scribe App (React)
 
-Under the `vim-ai-scribe-react` we have a project that uses cloudflare pages to host the Vim Canvas™️ Demo App built with React & also the serverless service needed for the authentication flow.
+Under the `vim--ai-scribe--react` we have a project that uses cloudflare pages to host the Vim Canvas™️ Demo App built with React & also the serverless service needed for the authentication flow.
 
 The app is built with `vite` and `react` and uses `shadcn`, `radix-ui`,`tailwindcss` for the UI components.
 

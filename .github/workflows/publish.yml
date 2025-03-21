@@ -18,14 +18,14 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        run: cd vim--ai-scribe-app && npm install
+        run: cd vim--ai-scribe--react && npm install
       - name: Build react app
-        run: cd vim--ai-scribe-app && npm run build
+        run: cd vim--ai-scribe--react && npm run build
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: vim--ai-scribe-app
+          projectName: vim--ai-scribe--react
           directory: dist
-          workingDirectory: vim--ai-scribe-app
+          workingDirectory: vim--ai-scribe--react
