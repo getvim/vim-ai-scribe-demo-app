@@ -91,7 +91,7 @@ npm run dev
 > This will start both the backend at `http://localhost:8788` and the frontend at `http://localhost:3000`. <br>
 The backend will proxy the frontend - **making both API & frontend available at `http://localhost:8788`**.
 
-6. Follow up on [Testing Your Application](https://docs.getvim.com/platform/testing.html#testing-your-application) in the official docs
+6. Follow up on [Testing Your Application](https://docs.getvim.com/testing/creating-application.html#create-your-canvas-application) in the official docs
 
 ### Authentication Flow
 
