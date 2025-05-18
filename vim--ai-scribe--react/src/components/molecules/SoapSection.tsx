@@ -170,7 +170,9 @@ export const SoapSection = ({
           fullWidth
           className="py-3 w-2/3 self-center"
           disabled={!isWriteAvailable}
-          tooltip={!isWriteAvailable ? "EHR write access missing" : "" }
+          tooltip={
+            !isWriteAvailable ? "Can't write to EHR in current state" : ""
+          }
         >
           Push to EHR
         </Button>

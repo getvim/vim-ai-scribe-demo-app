@@ -13,19 +13,15 @@ interface NotePanelProps {
 }
 
 const useUpdateSubjective = () => {
-  const encounterUpdates = useUpdateEncounterSubscription<"subjective">(
-    {
-      subjective: {
-        generalNotes: true,
-        chiefComplaintNotes: true,
-        historyOfPresentIllnessNotes: true,
-        reviewOfSystemsNotes: true,
-      },
-    },
+  const encounterUpdates = useUpdateEncounterSubscription(
     "subjective",
     {
-      subjective: ["chiefComplaintNotes", "reviewOfSystemsNotes"],
-    }
+      generalNotes: true,
+      chiefComplaintNotes: true,
+      historyOfPresentIllnessNotes: true,
+      reviewOfSystemsNotes: true,
+    },
+    ["chiefComplaintNotes", "reviewOfSystemsNotes"]
   );
 
   const { updateSubscriptionField, canUpdateSubscriptionParams } =
@@ -47,17 +43,13 @@ const useUpdateSubjective = () => {
 };
 
 const useUpdateObjective = () => {
-  const encounterUpdates = useUpdateEncounterSubscription<"objective">(
-    {
-      objective: {
-        generalNotes: true,
-        physicalExamNotes: true,
-      },
-    },
+  const encounterUpdates = useUpdateEncounterSubscription(
     "objective",
     {
-      objective: ["generalNotes", "physicalExamNotes"],
-    }
+      generalNotes: true,
+      physicalExamNotes: true,
+    },
+    ["generalNotes", "physicalExamNotes"]
   );
 
   const { updateSubscriptionField, canUpdateSubscriptionParams } =
@@ -79,16 +71,12 @@ const useUpdateObjective = () => {
 };
 
 const useUpdateAssessment = () => {
-  const encounterUpdates = useUpdateEncounterSubscription<"assessment">(
-    {
-      assessment: {
-        generalNotes: true,
-      },
-    },
+  const encounterUpdates = useUpdateEncounterSubscription(
     "assessment",
     {
-      assessment: ["generalNotes"],
-    }
+      generalNotes: true,
+    },
+    ["generalNotes"]
   );
 
   const { updateSubscriptionField, canUpdateSubscriptionParams } =
@@ -110,16 +98,12 @@ const useUpdateAssessment = () => {
 };
 
 const useUpdatePlan = () => {
-  const encounterUpdates = useUpdateEncounterSubscription<"plan">(
-    {
-      plan: {
-        generalNotes: true,
-      },
-    },
+  const encounterUpdates = useUpdateEncounterSubscription(
     "plan",
     {
-      plan: ["generalNotes"],
-    }
+      generalNotes: true,
+    },
+    ["generalNotes"]
   );
 
   const { updateSubscriptionField, canUpdateSubscriptionParams } =
@@ -167,9 +151,7 @@ export const NotesSections = ({
         isHighlighted={isHighlighted("subjective")}
         isWriteAvailable={canUpdateSubjectiveNote}
         renderHighlightedText={renderHighlightedText}
-        onPushToEHR={() => {
-          updateSubjectiveNote();
-        }}
+        onPushToEHR={updateSubjectiveNote}
       />
       <SoapSection
         title="Objective"
@@ -177,7 +159,7 @@ export const NotesSections = ({
         isHighlighted={isHighlighted("objective")}
         isWriteAvailable={canUpdateObjectiveNote}
         renderHighlightedText={renderHighlightedText}
-        onPushToEHR={() => updateObjectiveNote()}
+        onPushToEHR={updateObjectiveNote}
       />
       <SoapSection
         title="Assessment"
@@ -185,7 +167,7 @@ export const NotesSections = ({
         isHighlighted={isHighlighted("assessment")}
         isWriteAvailable={canUpdateAssessmentNote}
         renderHighlightedText={renderHighlightedText}
-        onPushToEHR={() => updateAssessmentNote()}
+        onPushToEHR={updateAssessmentNote}
       />
       <SoapSection
         title="Plan"
@@ -193,7 +175,7 @@ export const NotesSections = ({
         isHighlighted={isHighlighted("plan")}
         isWriteAvailable={canUpdatePlanNote}
         renderHighlightedText={renderHighlightedText}
-        onPushToEHR={() => updatePlanNote()}
+        onPushToEHR={updatePlanNote}
       />
     </div>
   );
