@@ -1,6 +1,6 @@
 import { Mic, User } from "lucide-react";
 import { Button } from "../../atoms/Button";
-import { useProviderName } from "../ai-scribe-demo/useProviderName";
+import { useProviderName } from "@/vimOs/useProviderName";
 
 export const RecordingTab = ({
   patientName,
