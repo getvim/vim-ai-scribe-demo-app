@@ -14,7 +14,7 @@ import {
 import { MEDICAL_KEYWORDS } from "./keywords.mock";
 import type { Note } from "./Note.interface";
 import { ProcessingTab } from "./ProcessingTab";
-import { usePatientName } from "./usePatientName";
+import { usePatientName } from "../../../vimOs/usePatientName";
 import { useRecorder } from "./useRecorder";
 import { UserTab } from "./UserTab";
 
@@ -70,6 +70,7 @@ export const AiScribeDemo = () => {
   const [activeTab, setActiveTab] = useState<TabType>("record");
   const [notes, setNotes] = useState<Note[]>([]);
   const patientName = usePatientName();
+  const [visitedPatient, setVisitedPatient] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const { watch, reset } = useNoteFormContext();
@@ -106,6 +107,7 @@ export const AiScribeDemo = () => {
 
   const handleEndVisit = () => {
     stopRecording();
+    setVisitedPatient(patientName);
     setIsProcessing(true);
 
     setTimeout(() => {
@@ -206,7 +208,7 @@ export const AiScribeDemo = () => {
 
           {activeTab === "notes" && (
             <NotesTab
-              patientName={patientName}
+              patientName={visitedPatient}
               handleFullEhrUpdate={handleFullEhrUpdate}
               renderHighlightedText={renderHighlightedText}
             />

@@ -11,7 +11,7 @@ export const NotesTab = ({
   handleFullEhrUpdate,
   renderHighlightedText,
 }: {
-  patientName: string;
+  patientName: string | null;
   handleFullEhrUpdate: () => Promise<void>;
   renderHighlightedText: (text: string) => JSX.Element;
 }) => {
@@ -29,8 +29,9 @@ export const NotesTab = ({
   return (
     <>
       <div className="flex flex-col justify-between items-center gap-2">
-        <h2 className="text-3xl font-bold text-gray-800">
-          {patientName || "Patient Name"}
+        <h2 className="text-2xl text-gray-800">
+          Notes for{" "}
+          <span className="font-bold">{patientName || "Patient Name"}</span>
         </h2>
         <div className="flex items-center space-x-4">
           <Button
@@ -40,7 +41,7 @@ export const NotesTab = ({
           >
             Transcription
           </Button>
-          <Button onClick={() => handleFullEhrUpdate()}>Push all to EHR</Button>
+          <Button onClick={handleFullEhrUpdate}>Push all to EHR</Button>
         </div>
         <div className="text-sm text-gray-500">Note saved automatically</div>
       </div>
