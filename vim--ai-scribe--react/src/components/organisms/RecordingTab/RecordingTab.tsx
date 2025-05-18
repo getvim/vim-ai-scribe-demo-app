@@ -1,26 +1,20 @@
-import { type Dispatch, type SetStateAction } from "react";
-import { User, Mic } from "lucide-react";
+import { Mic, User } from "lucide-react";
 import { Button } from "../../atoms/Button";
-import { Input } from "../../atoms/Input";
-import { useVimOsContext } from "@/providers/VimOSContext";
-import { buildName } from "../ai-scribe-demo/buildName";
+import { useProviderName } from "../ai-scribe-demo/useProviderName";
 
 export const RecordingTab = ({
   patientName,
-  setPatientName,
   simulateRecording,
 }: {
   patientName: string;
-  setPatientName: Dispatch<SetStateAction<string>>;
   simulateRecording: () => void;
 }) => {
-  const vimOS = useVimOsContext();
-  const username = buildName(vimOS) || ""
+  const providerName = useProviderName();
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-center justify-between">
-        <div>{username}</div>
+      <div className="flex flex-col items-center justify-between space-y-2">
+        <div>Hi there, {providerName}</div>
         <div className="flex items-center space-x-2">
           <User className="h-5 w-5 text-gray-500" />
           <h2 className="text-lg font-semibold text-gray-900">
@@ -29,12 +23,8 @@ export const RecordingTab = ({
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto">
-        <Input
-          value={patientName}
-          onChange={setPatientName}
-          placeholder="Enter patient name"
-        />
+      <div className="flex flex-col items-center">
+        <div>{patientName}</div>
 
         <Button
           onClick={simulateRecording}
@@ -43,7 +33,7 @@ export const RecordingTab = ({
           className="mt-4 py-4"
         >
           <Mic className="h-5 w-5 mr-2" />
-          Start Recording
+          {patientName ? "Start Recording" : "Waiting for patient"}
         </Button>
       </div>
     </div>

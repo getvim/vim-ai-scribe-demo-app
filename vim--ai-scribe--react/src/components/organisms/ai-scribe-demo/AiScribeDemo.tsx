@@ -1,22 +1,22 @@
-import { useState } from "react";
-import { useUpdateEncounter } from "@/vimOs/useUpdateEncounter";
 import { NavigationBar } from "@/components/molecules/NavigationBar";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
+import { useVimOsContext } from "@/providers/VimOSContext";
+import { useUpdateEncounter } from "@/vimOs/useUpdateEncounter";
+import { useState } from "react";
+import { NotesTab } from "../notes-tab/NotesTab";
 import { RecordingPanel } from "../recording-panel/RecordingPanel";
-import { MEDICAL_KEYWORDS } from "./keywords.mock";
-import { useRecorder } from "./useRecorder";
 import { RecordingTab } from "../RecordingTab/RecordingTab";
-import { ProcessingTab } from "./ProcessingTab";
+import { AppHeader } from "./AppHeader";
 import {
   DiagnosisCodesModal,
   type DiagnosisCodesList,
 } from "./DiagnosisCodesModal";
+import { MEDICAL_KEYWORDS } from "./keywords.mock";
 import type { Note } from "./Note.interface";
+import { ProcessingTab } from "./ProcessingTab";
+import { usePatientName } from "./usePatientName";
+import { useRecorder } from "./useRecorder";
 import { UserTab } from "./UserTab";
-import { AppHeader } from "./AppHeader";
-import { useVimOsContext } from "@/providers/VimOSContext";
-import { NotesTab } from "../notes-tab/NotesTab";
-import { buildName } from "./buildName";
 
 const RECORDING_RESULT = {
   subjective:
@@ -69,9 +69,7 @@ export const AiScribeDemo = () => {
   const vimOS = useVimOsContext();
   const [activeTab, setActiveTab] = useState<TabType>("record");
   const [notes, setNotes] = useState<Note[]>([]);
-  const [patientName, setPatientName] = useState<string>(
-    () => buildName(vimOS) || ""
-  );
+  const patientName = usePatientName();
   const [isProcessing, setIsProcessing] = useState(false);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const { watch, reset } = useNoteFormContext();
@@ -191,7 +189,6 @@ export const AiScribeDemo = () => {
           {activeTab === "record" && !isRecording && !isProcessing && (
             <RecordingTab
               patientName={patientName}
-              setPatientName={setPatientName}
               simulateRecording={simulateRecording}
             />
           )}
@@ -215,11 +212,7 @@ export const AiScribeDemo = () => {
             />
           )}
 
-          {activeTab === "user" && (
-            <UserTab
-              notes={notes}
-            />
-          )}
+          {activeTab === "user" && <UserTab notes={notes} />}
         </div>
 
         {selectedKeyword && (
