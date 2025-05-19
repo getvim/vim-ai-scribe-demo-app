@@ -1,141 +1,36 @@
-import { useUpdateEncounterSubscription } from "@/vimOs/useUpdateEncounter";
 import { SoapSection } from "../../molecules/SoapSection";
 import type {
   SectionTypes,
   TranscriptionSegment,
 } from "../ai-scribe-demo/transcription.mock";
-import { useNoteFormContext } from "@/providers/NoteFormContext";
 
 interface NotePanelProps {
   hoveredSegment: number | null;
   transcriptionSegments: TranscriptionSegment[];
   renderHighlightedText: (text: string) => JSX.Element;
+  canUpdateSubjectiveNote: boolean;
+  canUpdateObjectiveNote: boolean;
+  canUpdateAssessmentNote: boolean;
+  canUpdatePlanNote: boolean;
+  updateSubjectiveNote: () => void;
+  updateObjectiveNote: () => void;
+  updateAssessmentNote: () => void;
+  updatePlanNote: () => void;
 }
-
-const useUpdateSubjective = () => {
-  const encounterUpdates = useUpdateEncounterSubscription(
-    "subjective",
-    {
-      generalNotes: true,
-      chiefComplaintNotes: true,
-      historyOfPresentIllnessNotes: true,
-      reviewOfSystemsNotes: true,
-    },
-    ["chiefComplaintNotes", "reviewOfSystemsNotes"]
-  );
-
-  const { updateSubscriptionField, canUpdateSubscriptionParams } =
-    encounterUpdates;
-  const { watch } = useNoteFormContext();
-
-  const updateSubjectiveNote = () => {
-    if (canUpdateSubscriptionParams) {
-      const formValues = watch();
-
-      updateSubscriptionField(formValues.subjective);
-    }
-  };
-
-  return {
-    canUpdateSubjectiveNote: canUpdateSubscriptionParams,
-    updateSubjectiveNote,
-  };
-};
-
-const useUpdateObjective = () => {
-  const encounterUpdates = useUpdateEncounterSubscription(
-    "objective",
-    {
-      generalNotes: true,
-      physicalExamNotes: true,
-    },
-    ["generalNotes", "physicalExamNotes"]
-  );
-
-  const { updateSubscriptionField, canUpdateSubscriptionParams } =
-    encounterUpdates;
-  const { watch } = useNoteFormContext();
-
-  const updateObjectiveNote = () => {
-    if (canUpdateSubscriptionParams) {
-      const formValues = watch();
-
-      updateSubscriptionField(formValues.objective);
-    }
-  };
-
-  return {
-    canUpdateObjectiveNote: canUpdateSubscriptionParams,
-    updateObjectiveNote,
-  };
-};
-
-const useUpdateAssessment = () => {
-  const encounterUpdates = useUpdateEncounterSubscription(
-    "assessment",
-    {
-      generalNotes: true,
-    },
-    ["generalNotes"]
-  );
-
-  const { updateSubscriptionField, canUpdateSubscriptionParams } =
-    encounterUpdates;
-  const { watch } = useNoteFormContext();
-
-  const updateAssessmentNote = () => {
-    if (canUpdateSubscriptionParams) {
-      const formValues = watch();
-
-      updateSubscriptionField(formValues.assessment);
-    }
-  };
-
-  return {
-    canUpdateAssessmentNote: canUpdateSubscriptionParams,
-    updateAssessmentNote,
-  };
-};
-
-const useUpdatePlan = () => {
-  const encounterUpdates = useUpdateEncounterSubscription(
-    "plan",
-    {
-      generalNotes: true,
-    },
-    ["generalNotes"]
-  );
-
-  const { updateSubscriptionField, canUpdateSubscriptionParams } =
-    encounterUpdates;
-  const { watch } = useNoteFormContext();
-
-  const updatePlanNote = () => {
-    if (canUpdateSubscriptionParams) {
-      const formValues = watch();
-
-      updateSubscriptionField(formValues.plan);
-    }
-  };
-
-  return {
-    canUpdatePlanNote: canUpdateSubscriptionParams,
-    updatePlanNote,
-  };
-};
 
 export const NotesSections = ({
   hoveredSegment,
   transcriptionSegments,
   renderHighlightedText,
+  canUpdateSubjectiveNote,
+  canUpdateObjectiveNote,
+  canUpdateAssessmentNote,
+  canUpdatePlanNote,
+  updateSubjectiveNote,
+  updateObjectiveNote,
+  updateAssessmentNote,
+  updatePlanNote,
 }: NotePanelProps) => {
-  const { updateSubjectiveNote, canUpdateSubjectiveNote } =
-    useUpdateSubjective();
-  const { updateObjectiveNote, canUpdateObjectiveNote } = useUpdateObjective();
-  const { updateAssessmentNote, canUpdateAssessmentNote } =
-    useUpdateAssessment();
-  const { updatePlanNote, canUpdatePlanNote } = useUpdatePlan();
-
   const isHighlighted = (section: SectionTypes) => {
     if (hoveredSegment === null) return false;
     return transcriptionSegments[hoveredSegment].affectedSections.includes(

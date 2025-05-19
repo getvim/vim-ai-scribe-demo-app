@@ -13,58 +13,63 @@ const calcIsUpdatable = <T extends keyof EHR.UpdateEncounterParams>(
   sectionName: T,
   priorityList: SectionFields<T>,
   details: EHR.CanUpdateEncounterParams
-): SectionFields<T> => {
-  const section = details[sectionName] || {};
-  const updatableFields = priorityList.filter(
-    (fieldName) => section[fieldName as keyof typeof section] === true
-  );
+): SectionField<T> | undefined => {
+  if (sectionName && priorityList) {
+    const section = details[sectionName];
+    if (!section) {
+      return undefined;
+    }
+    const updatableField = priorityList.find(
+      (fieldName) => section[fieldName] === true
+    );
 
-  return updatableFields;
+    return updatableField;
+  }
 };
 
 export const useUpdateEncounterSubscription = <
   T extends keyof EHR.UpdateEncounterParams
 >(
   sectionName: T,
-  subscriptionParams: EHR.CanUpdateEncounterParams[T],
   priorityList: SectionFields<T>
 ) => {
   const vimOS = useVimOsContext();
   const [canUpdateSubscriptionParams, setCanUpdateSubscriptionParams] =
     useState<boolean>(false);
-  const [subscriptionUpdatableFields, setSubscriptionUpdatableFields] =
-    useState<SectionFields<T>>();
+  const [subscriptionUpdatableField, setSubscriptionUpdatableField] =
+    useState<SectionField<T>>();
 
   useEffect(() => {
     const onUpdate = () => {
       const { details } = vimOS.ehr.resourceUpdater.canUpdateEncounter({
-        [sectionName]: subscriptionParams,
+        [sectionName]: priorityList.reduce(
+          (acc, field) => ({
+            ...acc,
+            [field]: true,
+          }),
+          {}
+        ),
       });
-      const updatableFields = calcIsUpdatable(
+      const updatableField = calcIsUpdatable(
         sectionName,
         priorityList,
         details
       );
-      const canUpdate = updatableFields.length > 0;
+      const canUpdate = updatableField !== undefined;
       setCanUpdateSubscriptionParams(canUpdate);
-      setSubscriptionUpdatableFields(updatableFields);
+      setSubscriptionUpdatableField(updatableField);
     };
 
     vimOS.ehr.resourceUpdater.subscribe("encounter", onUpdate);
 
     return () => vimOS.ehr.resourceUpdater.unsubscribe("encounter", onUpdate);
-  }, [
-    priorityList,
-    sectionName,
-    subscriptionParams,
-    vimOS.ehr.resourceUpdater,
-  ]);
+  }, [priorityList, sectionName, vimOS.ehr.resourceUpdater]);
 
   // Expose flag, field to update & update function
   return useMemo(
     () => ({
       canUpdateSubscriptionParams,
-      subscriptionUpdatableFields,
+      subscriptionUpdatableField,
       updateSubscriptionField: (content: string) => {
         if (!sectionName || !canUpdateSubscriptionParams) {
           return;
@@ -87,7 +92,7 @@ export const useUpdateEncounterSubscription = <
               variant: "destructive",
               title: "Uh oh! Something went wrong.",
               sectionName,
-              subscriptionUpdatableFields,
+              subscriptionUpdatableField,
               description: error ? JSON.stringify(error) : "An error occurred.",
             });
           });
@@ -96,7 +101,7 @@ export const useUpdateEncounterSubscription = <
     [
       canUpdateSubscriptionParams,
       sectionName,
-      subscriptionUpdatableFields,
+      subscriptionUpdatableField,
       vimOS.ehr.resourceUpdater,
     ]
   );

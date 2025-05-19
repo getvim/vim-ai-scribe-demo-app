@@ -5,6 +5,12 @@ import { Button } from "../../atoms/Button";
 import { DebugView } from "../../templates/DebugView";
 import { MOCK_TRANSCRIPTION } from "../ai-scribe-demo/transcription.mock";
 import { NotesSections } from "./NotesSections";
+import {
+  useUpdateSubjective,
+  useUpdateObjective,
+  useUpdateAssessment,
+  useUpdatePlan,
+} from "./useSectionWriteAvailability";
 
 export const NotesTab = ({
   patientName,
@@ -20,6 +26,21 @@ export const NotesTab = ({
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const { watch } = useNoteFormContext();
   const currentNote = watch();
+
+  // Use the hooks to get write availability and update functions
+  const { canUpdateSubjectiveNote, updateSubjectiveNote } =
+    useUpdateSubjective();
+  const { canUpdateObjectiveNote, updateObjectiveNote } = useUpdateObjective();
+  const { canUpdateAssessmentNote, updateAssessmentNote } =
+    useUpdateAssessment();
+  const { canUpdatePlanNote, updatePlanNote } = useUpdatePlan();
+
+  // Only enable the button if all are true
+  const canPushAll =
+    canUpdateSubjectiveNote &&
+    canUpdateObjectiveNote &&
+    canUpdateAssessmentNote &&
+    canUpdatePlanNote;
 
   const toggleDebugMode = () => {
     setIsDebugMode(!isDebugMode);
@@ -41,7 +62,9 @@ export const NotesTab = ({
           >
             Transcription
           </Button>
-          <Button onClick={handleFullEhrUpdate}>Push all to EHR</Button>
+          <Button onClick={handleFullEhrUpdate} disabled={!canPushAll}>
+            Push all to EHR
+          </Button>
         </div>
         <div className="text-sm text-gray-500">Note saved automatically</div>
       </div>
@@ -59,6 +82,14 @@ export const NotesTab = ({
           hoveredSegment={hoveredSegment}
           transcriptionSegments={MOCK_TRANSCRIPTION}
           renderHighlightedText={renderHighlightedText}
+          canUpdateSubjectiveNote={canUpdateSubjectiveNote}
+          canUpdateObjectiveNote={canUpdateObjectiveNote}
+          canUpdateAssessmentNote={canUpdateAssessmentNote}
+          canUpdatePlanNote={canUpdatePlanNote}
+          updateSubjectiveNote={updateSubjectiveNote}
+          updateObjectiveNote={updateObjectiveNote}
+          updateAssessmentNote={updateAssessmentNote}
+          updatePlanNote={updatePlanNote}
         />
       )}
     </>
