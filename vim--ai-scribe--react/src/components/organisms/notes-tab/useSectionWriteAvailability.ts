@@ -83,3 +83,22 @@ export const useUpdatePlan = () => {
     updatePlanNote,
   };
 };
+
+export const useUpdateEncounter = () => {
+  const { canUpdateSubjectiveNote, updateSubjectiveNote } =
+    useUpdateSubjective();
+  const { canUpdateObjectiveNote, updateObjectiveNote } = useUpdateObjective();
+  const { canUpdateAssessmentNote, updateAssessmentNote } =
+    useUpdateAssessment();
+  const { canUpdatePlanNote, updatePlanNote } = useUpdatePlan();
+  return {
+    canUpdateSubjectiveNote,
+    updateSubjectiveNote,
+    canUpdateObjectiveNote,
+    updateObjectiveNote,
+    canUpdateAssessmentNote,
+    updateAssessmentNote,
+    canUpdatePlanNote,
+    updatePlanNote,
+  };
+};

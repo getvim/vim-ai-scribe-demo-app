@@ -1,16 +1,11 @@
-import { useState } from "react";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
+import { useState } from "react";
 import { Button } from "../../atoms/Button";
-import { DebugView } from "../../templates/DebugView";
+import { DebugView } from "./DebugView";
 import { MOCK_TRANSCRIPTION } from "../ai-scribe-demo/transcription.mock";
 import { NotesSections } from "./NotesSections";
-import {
-  useUpdateSubjective,
-  useUpdateObjective,
-  useUpdateAssessment,
-  useUpdatePlan,
-} from "./useSectionWriteAvailability";
+import { useUpdateEncounter } from "./useSectionWriteAvailability";
 
 export const NotesTab = ({
   patientName,
@@ -27,20 +22,14 @@ export const NotesTab = ({
   const { watch } = useNoteFormContext();
   const currentNote = watch();
 
-  // Use the hooks to get write availability and update functions
-  const { canUpdateSubjectiveNote, updateSubjectiveNote } =
-    useUpdateSubjective();
-  const { canUpdateObjectiveNote, updateObjectiveNote } = useUpdateObjective();
-  const { canUpdateAssessmentNote, updateAssessmentNote } =
-    useUpdateAssessment();
-  const { canUpdatePlanNote, updatePlanNote } = useUpdatePlan();
+  const updateEncounterState = useUpdateEncounter();
 
   // Only enable the button if all are true
   const canPushAll =
-    canUpdateSubjectiveNote &&
-    canUpdateObjectiveNote &&
-    canUpdateAssessmentNote &&
-    canUpdatePlanNote;
+    updateEncounterState.canUpdateSubjectiveNote &&
+    updateEncounterState.canUpdateObjectiveNote &&
+    updateEncounterState.canUpdateAssessmentNote &&
+    updateEncounterState.canUpdatePlanNote;
 
   const toggleDebugMode = () => {
     setIsDebugMode(!isDebugMode);
@@ -82,14 +71,7 @@ export const NotesTab = ({
           hoveredSegment={hoveredSegment}
           transcriptionSegments={MOCK_TRANSCRIPTION}
           renderHighlightedText={renderHighlightedText}
-          canUpdateSubjectiveNote={canUpdateSubjectiveNote}
-          canUpdateObjectiveNote={canUpdateObjectiveNote}
-          canUpdateAssessmentNote={canUpdateAssessmentNote}
-          canUpdatePlanNote={canUpdatePlanNote}
-          updateSubjectiveNote={updateSubjectiveNote}
-          updateObjectiveNote={updateObjectiveNote}
-          updateAssessmentNote={updateAssessmentNote}
-          updatePlanNote={updatePlanNote}
+          {...updateEncounterState}
         />
       )}
     </>
