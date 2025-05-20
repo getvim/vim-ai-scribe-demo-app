@@ -3,34 +3,29 @@ import type {
   SectionTypes,
   TranscriptionSegment,
 } from "../ai-scribe-demo/transcription.mock";
+import { useUpdateEncounter } from "./useSectionWriteAvailability";
 
 interface NotePanelProps {
   hoveredSegment: number | null;
   transcriptionSegments: TranscriptionSegment[];
   renderHighlightedText: (text: string) => JSX.Element;
-  canUpdateSubjectiveNote: boolean;
-  canUpdateObjectiveNote: boolean;
-  canUpdateAssessmentNote: boolean;
-  canUpdatePlanNote: boolean;
-  updateSubjectiveNote: () => void;
-  updateObjectiveNote: () => void;
-  updateAssessmentNote: () => void;
-  updatePlanNote: () => void;
 }
 
 export const NotesSections = ({
   hoveredSegment,
   transcriptionSegments,
   renderHighlightedText,
-  canUpdateSubjectiveNote,
-  canUpdateObjectiveNote,
-  canUpdateAssessmentNote,
-  canUpdatePlanNote,
-  updateSubjectiveNote,
-  updateObjectiveNote,
-  updateAssessmentNote,
-  updatePlanNote,
 }: NotePanelProps) => {
+  const {
+    canUpdateSubjectiveNote,
+    canUpdateObjectiveNote,
+    canUpdateAssessmentNote,
+    canUpdatePlanNote,
+    updateSubjectiveNote,
+    updateObjectiveNote,
+    updateAssessmentNote,
+    updatePlanNote,
+  } = useUpdateEncounter();
   const isHighlighted = (section: SectionTypes) => {
     if (hoveredSegment === null) return false;
     return transcriptionSegments[hoveredSegment].affectedSections.includes(

@@ -2,7 +2,7 @@ import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
 import { useState } from "react";
 import { Button } from "../../atoms/Button";
-import { DebugView } from "./DebugView";
+import { DebugView } from "../../templates/DebugView";
 import { MOCK_TRANSCRIPTION } from "../ai-scribe-demo/transcription.mock";
 import { NotesSections } from "./NotesSections";
 import { useUpdateEncounter } from "./useSectionWriteAvailability";
@@ -71,7 +71,6 @@ export const NotesTab = ({
           hoveredSegment={hoveredSegment}
           transcriptionSegments={MOCK_TRANSCRIPTION}
           renderHighlightedText={renderHighlightedText}
-          {...updateEncounterState}
         />
       )}
     </>

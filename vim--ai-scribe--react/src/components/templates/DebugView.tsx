@@ -1,7 +1,6 @@
-import { TranscriptionPanel } from "../transcription-panel/TranscriptionPanel";
-import { NotesSections } from "./NotesSections";
-import type { TranscriptionSegment } from "../ai-scribe-demo/transcription.mock";
-import { useUpdateEncounter } from "./useSectionWriteAvailability";
+import type { TranscriptionSegment } from "../organisms/ai-scribe-demo/transcription.mock";
+import { TranscriptionPanel } from "../organisms/transcription-panel/TranscriptionPanel";
+import { NotesSections } from "../organisms/notes-tab/NotesSections";
 
 interface DebugViewProps {
   transcriptionSegments: TranscriptionSegment[];
@@ -22,8 +21,6 @@ export const DebugView = ({
   onHoverSegment,
   renderHighlightedText,
 }: DebugViewProps) => {
-  const updateEncounterState = useUpdateEncounter();
-
   return (
     <div className="grid grid-cols-2 gap-6">
       <TranscriptionPanel
@@ -35,7 +32,6 @@ export const DebugView = ({
         hoveredSegment={hoveredSegment}
         transcriptionSegments={transcriptionSegments}
         renderHighlightedText={renderHighlightedText}
-        {...updateEncounterState}
       />
     </div>
   );
