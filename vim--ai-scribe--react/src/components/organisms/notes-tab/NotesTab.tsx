@@ -1,10 +1,11 @@
-import { useState } from "react";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
+import { useState } from "react";
 import { Button } from "../../atoms/Button";
 import { DebugView } from "../../templates/DebugView";
 import { MOCK_TRANSCRIPTION } from "../ai-scribe-demo/transcription.mock";
 import { NotesSections } from "./NotesSections";
+import { useUpdateEncounter } from "./useSectionWriteAvailability";
 
 export const NotesTab = ({
   patientName,
@@ -20,6 +21,15 @@ export const NotesTab = ({
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const { watch } = useNoteFormContext();
   const currentNote = watch();
+
+  const updateEncounterState = useUpdateEncounter();
+
+  // Only enable the button if all are true
+  const canPushAll =
+    updateEncounterState.canUpdateSubjectiveNote &&
+    updateEncounterState.canUpdateObjectiveNote &&
+    updateEncounterState.canUpdateAssessmentNote &&
+    updateEncounterState.canUpdatePlanNote;
 
   const toggleDebugMode = () => {
     setIsDebugMode(!isDebugMode);
@@ -41,7 +51,9 @@ export const NotesTab = ({
           >
             Transcription
           </Button>
-          <Button onClick={handleFullEhrUpdate}>Push all to EHR</Button>
+          <Button onClick={handleFullEhrUpdate} disabled={!canPushAll}>
+            Push all to EHR
+          </Button>
         </div>
         <div className="text-sm text-gray-500">Note saved automatically</div>
       </div>

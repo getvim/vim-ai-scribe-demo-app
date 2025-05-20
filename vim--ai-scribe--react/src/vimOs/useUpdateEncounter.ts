@@ -2,18 +2,27 @@ import { useEffect, useMemo, useState } from "react";
 import type { EHR } from "vim-os-js-browser/types";
 import { useVimOsContext } from "@/providers/VimOSContext";
 
-const calcIsUpdatable = (
-  sectionName: keyof EHR.UpdateEncounterParams,
-  priorityList: Partial<Record<keyof EHR.UpdateEncounterParams, string[]>>,
+type SectionField<T extends keyof EHR.UpdateEncounterParams> =
+  keyof NonNullable<EHR.UpdateEncounterParams[T]>;
+
+type SectionFields<T extends keyof EHR.UpdateEncounterParams> = Array<
+  SectionField<T>
+>;
+
+const calcIsUpdatable = <T extends keyof EHR.UpdateEncounterParams>(
+  sectionName: T,
+  priorityList: SectionFields<T>,
   details: EHR.CanUpdateEncounterParams
-) => {
+): SectionField<T> | undefined => {
   if (sectionName && priorityList) {
-    const section = details[sectionName] || {};
-    const priorities = priorityList[sectionName] || [];
-    const updatableField = priorities?.find(
-      (fieldName) => section[fieldName as keyof typeof section] === true
+    const section = details[sectionName];
+    if (!section) {
+      return undefined;
+    }
+    const updatableField = priorityList.find(
+      (fieldName) => section[fieldName] === true
     );
-    
+
     return updatableField;
   }
 };
@@ -21,43 +30,40 @@ const calcIsUpdatable = (
 export const useUpdateEncounterSubscription = <
   T extends keyof EHR.UpdateEncounterParams
 >(
-  subscriptionParams: EHR.CanUpdateEncounterParams,
   sectionName: T,
-  priorityList: Partial<Record<keyof EHR.UpdateEncounterParams, string[]>> // TODO Support Actual Fieldname // Partial<Record<T, Array<keyof EHR.UpdateEncounterParams[T]>>>
+  priorityList: SectionFields<T>
 ) => {
   const vimOS = useVimOsContext();
   const [canUpdateSubscriptionParams, setCanUpdateSubscriptionParams] =
     useState<boolean>(false);
   const [subscriptionUpdatableField, setSubscriptionUpdatableField] =
-    useState<string>();
+    useState<SectionField<T>>();
 
   useEffect(() => {
     const onUpdate = () => {
-      if (subscriptionParams) {
-        const { details } =
-          vimOS.ehr.resourceUpdater.canUpdateEncounter(subscriptionParams);
-        if (sectionName && priorityList) {
-          const updatableField = calcIsUpdatable(
-            sectionName,
-            priorityList,
-            details
-          );
-          const canUpdate = updatableField !== undefined;
-          setCanUpdateSubscriptionParams(canUpdate);
-          setSubscriptionUpdatableField(updatableField);
-        }
-      }
+      const { details } = vimOS.ehr.resourceUpdater.canUpdateEncounter({
+        [sectionName]: priorityList.reduce(
+          (acc, field) => ({
+            ...acc,
+            [field]: true,
+          }),
+          {}
+        ),
+      });
+      const updatableField = calcIsUpdatable(
+        sectionName,
+        priorityList,
+        details
+      );
+      const canUpdate = updatableField !== undefined;
+      setCanUpdateSubscriptionParams(canUpdate);
+      setSubscriptionUpdatableField(updatableField);
     };
 
     vimOS.ehr.resourceUpdater.subscribe("encounter", onUpdate);
 
     return () => vimOS.ehr.resourceUpdater.unsubscribe("encounter", onUpdate);
-  }, [
-    priorityList,
-    sectionName,
-    subscriptionParams,
-    vimOS.ehr.resourceUpdater,
-  ]);
+  }, [priorityList, sectionName, vimOS.ehr.resourceUpdater]);
 
   // Expose flag, field to update & update function
   return useMemo(
