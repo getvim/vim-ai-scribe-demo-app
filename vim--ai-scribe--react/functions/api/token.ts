@@ -50,8 +50,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     return Response.json(tokenData);
   } catch (error) {
+    const requestText = await requestClone.text();
     console.log("Error parsing body", {
-      request: requestClone.text(),
+      request: requestText,
     });
     throw error;
   }
