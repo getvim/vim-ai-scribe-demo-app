@@ -19,22 +19,23 @@ async function getToken(context, code: string, client_secret: string) {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const requestClone = context.request.clone();
-  try {
-    const { code } = await context.request.json<{ code: string }>();
-    let vimResponse = await getToken(context, code, context.env.CLIENT_SECRET);
-    if (
-      vimResponse.status >= 400 &&
-      vimResponse.status < 500 &&
+  const { code } = await context.request.json<{ code: string }>();
+  let vimResponse = await getToken(context, code, context.env.CLIENT_SECRET);
+  if (
+    vimResponse.status >= 400 &&
+    vimResponse.status < 500 &&
+    context.env.CLIENT_SECRET_FALLBACK
+  ) {
+    vimResponse = await getToken(
+      context,
+      code,
       context.env.CLIENT_SECRET_FALLBACK
-    ) {
-      vimResponse = await getToken(
-        context,
-        code,
-        context.env.CLIENT_SECRET_FALLBACK
-      );
-    }
+    );
+  }
+  const vimResponseClone = vimResponse.clone();
+  try {
     const tokenData = await vimResponse.json();
+
     if (
       !(await isAuthorized(
         tokenData,
@@ -50,9 +51,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     return Response.json(tokenData);
   } catch (error) {
-    const requestText = await requestClone.text();
-    console.log("Error parsing body", {
-      request: requestText,
+    const vimResponseText = await vimResponseClone.text();
+    console.log("Error parsing vim response", {
+      vimResponseText,
     });
     throw error;
   }
