@@ -53,7 +53,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     console.log("Error parsing body", {
       request: requestClone.text(),
     });
-    return error;
+    throw error;
   }
 };
 
