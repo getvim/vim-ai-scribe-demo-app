@@ -19,34 +19,39 @@ async function getToken(context, code: string, client_secret: string) {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
-  const { code } = await context.request.json<{ code: string }>();
-  let vimResponse = await getToken(context, code, context.env.CLIENT_SECRET);
-  if (
-    vimResponse.status >= 400 &&
-    vimResponse.status < 500 &&
-    context.env.CLIENT_SECRET_FALLBACK
-  ) {
-    vimResponse = await getToken(
-      context,
-      code,
+  try {
+    const { code } = await context.request.json<{ code: string }>();
+    let vimResponse = await getToken(context, code, context.env.CLIENT_SECRET);
+    if (
+      vimResponse.status >= 400 &&
+      vimResponse.status < 500 &&
       context.env.CLIENT_SECRET_FALLBACK
-    );
-  }
-  const tokenData = await vimResponse.json();
-  if (
-    !(await isAuthorized(
-      tokenData,
-      context.env.CLIENT_ID,
-      context.env.VIM_ISSUER
-    ))
-  ) {
-    return new Response("", {
-      status: 403,
-      statusText: "Forbidden: You do not have access to this resource.",
-    });
-  }
+    ) {
+      vimResponse = await getToken(
+        context,
+        code,
+        context.env.CLIENT_SECRET_FALLBACK
+      );
+    }
+    const tokenData = await vimResponse.json();
+    if (
+      !(await isAuthorized(
+        tokenData,
+        context.env.CLIENT_ID,
+        context.env.VIM_ISSUER
+      ))
+    ) {
+      return new Response("", {
+        status: 403,
+        statusText: "Forbidden: You do not have access to this resource.",
+      });
+    }
 
-  return Response.json(tokenData);
+    return Response.json(tokenData);
+  } catch (error) {
+    console.log("Error parsing body", { request: context.request.text() });
+    return error;
+  }
 };
 
 async function isAuthorized(
