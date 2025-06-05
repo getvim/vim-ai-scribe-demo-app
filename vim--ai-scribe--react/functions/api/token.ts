@@ -19,6 +19,7 @@ async function getToken(context, code: string, client_secret: string) {
 }
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const requestClone = context.request.clone();
   try {
     const { code } = await context.request.json<{ code: string }>();
     let vimResponse = await getToken(context, code, context.env.CLIENT_SECRET);
@@ -49,7 +50,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     return Response.json(tokenData);
   } catch (error) {
-    console.log("Error parsing body", { request: context.request.text() });
+    console.log("Error parsing body", {
+      request: requestClone.text(),
+    });
     return error;
   }
 };
