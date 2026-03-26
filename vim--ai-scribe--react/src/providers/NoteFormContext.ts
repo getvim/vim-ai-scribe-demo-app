@@ -2,10 +2,24 @@ import { useForm, UseFormReturn } from "react-hook-form";
 import { createContext, useContext } from "react";
 
 export interface NoteFormData {
+  // Legacy fields (used for hasCurrentNote check and ICD modal)
   subjective: string;
   objective: string;
   assessment: string;
   plan: string;
+  // Granular section fields
+  subjectiveChiefComplaint: string;
+  subjectiveGeneral: string;
+  subjectiveHpi: string;
+  subjectiveRos: string;
+  objectiveGeneral: string;
+  objectivePhysicalExam: string;
+  assessmentGeneral: string;
+  assessmentIcdCodes: string;
+  planGeneral: string;
+  billingCptCodes: string;
+  generalEncounterNotes: string;
+  patientInstructions: string;
 }
 
 export const useNoteForm = () => {
@@ -15,6 +29,18 @@ export const useNoteForm = () => {
       objective: "",
       assessment: "",
       plan: "",
+      subjectiveChiefComplaint: "",
+      subjectiveGeneral: "",
+      subjectiveHpi: "",
+      subjectiveRos: "",
+      objectiveGeneral: "",
+      objectivePhysicalExam: "",
+      assessmentGeneral: "",
+      assessmentIcdCodes: "",
+      planGeneral: "",
+      billingCptCodes: "",
+      generalEncounterNotes: "",
+      patientInstructions: "",
     },
   });
 };
