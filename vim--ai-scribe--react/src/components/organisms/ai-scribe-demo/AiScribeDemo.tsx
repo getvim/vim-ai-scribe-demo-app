@@ -144,7 +144,7 @@ const { watch, reset } = useNoteFormContext();
       setNotes((prevNotes) => [savedNote, ...prevNotes]);
       setIsProcessing(false);
       setActiveTab("notes");
-    }, 8000);
+    }, 6000);
   };
 
 

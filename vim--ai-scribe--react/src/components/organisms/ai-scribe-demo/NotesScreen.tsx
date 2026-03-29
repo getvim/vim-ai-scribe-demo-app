@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCircle, Copy } from "lucide-react";
+import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCircle, Copy, ChevronUp } from "lucide-react";
 import { ScreenHeader } from "./ScreenHeader";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
@@ -78,6 +78,7 @@ export const NotesScreen = ({
   const currentNote = watch();
   const [pushedCodes, setPushedCodes] = useState<Set<string>>(new Set());
   const [ehrDiagnosisCodes, setEhrDiagnosisCodes] = useState<Set<string>>(new Set());
+  const [hasEncounter, setHasEncounter] = useState<boolean>(!!vimOS.ehr.ehrState?.encounter);
   const [pushError, setPushError] = useState<string | null>(null);
 
   // Per-section EHR field mapping
@@ -96,7 +97,9 @@ export const NotesScreen = ({
 
   const [openDropdown, setOpenDropdown] = useState<TextSectionKey | null>(null);
   const [copiedKey, setCopiedKey] = useState<TextSectionKey | null>(null);
+  const [showPushOptions, setShowPushOptions] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const pushOptionsRef = useRef<HTMLDivElement>(null);
 
   // Available EHR fields — filtered by canUpdateEncounter, fall back to all
   const [availableFields, setAvailableFields] = useState<EhrFieldOption[]>(ALL_EHR_OPTIONS);
@@ -132,6 +135,7 @@ export const NotesScreen = ({
 
   useEffect(() => {
     const onEncounterChange = (encounter: EHR.Encounter | undefined) => {
+      setHasEncounter(!!encounter);
       const codes = encounter?.assessment?.diagnosisCodes?.map((d) => d.code) ?? [];
       setEhrDiagnosisCodes(new Set(codes));
     };
@@ -144,6 +148,9 @@ export const NotesScreen = ({
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpenDropdown(null);
+      }
+      if (pushOptionsRef.current && !pushOptionsRef.current.contains(e.target as Node)) {
+        setShowPushOptions(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -209,6 +216,24 @@ export const NotesScreen = ({
     }
   };
 
+  const handlePushTextOnly = async () => {
+    setShowPushOptions(false);
+    const payload: Record<string, Record<string, unknown>> = {};
+    (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
+      if (!opt) return;
+      const content = currentNote[key] ?? "";
+      if (!payload[opt.section]) payload[opt.section] = {};
+      payload[opt.section][opt.field] = content;
+    });
+    if (Object.keys(payload).length === 0) return;
+    try {
+      await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);
+    } catch (error) {
+      console.error("Failed to push notes to EHR", error);
+      showError("Failed to push notes to EHR. Please try again.");
+    }
+  };
+
   const handlePushCode = async (type: "icd" | "cpt", entry: CodeEntry) => {
     try {
       if (type === "icd") {
@@ -228,9 +253,6 @@ export const NotesScreen = ({
   };
 
   const hasMappings = Object.values(mappings).some(Boolean);
-  const hasUnpushedIcd = MOCK_ICD_CODES.some((e) => !ehrDiagnosisCodes.has(e.code) && !pushedCodes.has(e.code));
-  const hasUnpushedCpt = MOCK_CPT_CODES.some((e) => !pushedCodes.has(e.code));
-  const hasAnythingToPush = hasMappings || hasUnpushedIcd || hasUnpushedCpt;
 
   return (
     <div className="flex flex-col w-full h-full rounded-tl-[20px] overflow-hidden shadow-[-5px_0px_10px_0px_rgba(8,58,107,0.15)] relative">
@@ -264,26 +286,34 @@ export const NotesScreen = ({
               <div className="flex items-center justify-between">
                 <span className="text-[#001c36] text-[15px] font-bold">{title}</span>
                 <div className="flex items-center gap-1 ml-2 shrink-0">
-                  {mapping && (
-                    <button
-                      onClick={() => setMappings((prev) => ({ ...prev, [key]: null }))}
-                      className="text-[#828282] hover:text-[#e53935] transition-colors"
-                      title="Remove mapping"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                  {hasEncounter ? (
+                    <>
+                      {mapping && (
+                        <button
+                          onClick={() => setMappings((prev) => ({ ...prev, [key]: null }))}
+                          className="text-[#828282] hover:text-[#e53935] transition-colors"
+                          title="Remove mapping"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setOpenDropdown(isOpen ? null : key)}
+                        className="flex items-center gap-1 text-[#828282] text-[12px] hover:text-[#001c36] transition-colors"
+                      >
+                        <span className="truncate max-w-[140px]">{mapping ? mapping.label : "No section linked"}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[#b0b0b0] text-[11px] italic max-w-[160px] text-right leading-tight">
+                      Open an encounter to map
+                    </span>
                   )}
-                  <button
-                    onClick={() => setOpenDropdown(isOpen ? null : key)}
-                    className="flex items-center gap-1 text-[#828282] text-[12px] hover:text-[#001c36] transition-colors"
-                  >
-                    <span className="truncate max-w-[140px]">{mapping ? mapping.label : "No section linked"}</span>
-                    <ChevronDown className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                  </button>
                 </div>
               </div>
 
-              {isOpen && (
+              {isOpen && hasEncounter && (
                 <div className="absolute right-0 top-7 z-20 bg-white rounded-[10px] shadow-[0px_4px_20px_0px_rgba(94,193,106,0.4)] border border-[rgba(94,193,106,0.2)] w-[270px] py-1 max-h-[260px] overflow-y-auto">
                   {availableFields.map((opt) => (
                     <button
@@ -397,20 +427,52 @@ export const NotesScreen = ({
 
       </div>
 
-      {/* Push to EHR — sticky */}
-      <div className="bg-white px-3 py-2 shrink-0">
-        <button
-          onClick={handlePushToEhr}
-          disabled={!hasAnythingToPush}
-          className={`flex items-center justify-center gap-2 w-full h-[50px] rounded-[80px] text-[16px] font-bold transition-colors ${
-            hasAnythingToPush
-              ? "bg-[#5ec16a] text-white hover:bg-[#4aab56]"
-              : "bg-[rgba(94,193,106,0.3)] text-white cursor-not-allowed"
-          }`}
-        >
-          <Send className="w-5 h-5" />
-          Push to EHR
-        </button>
+      {/* Push to EHR — sticky split button */}
+      <div className="bg-white px-3 py-2 shrink-0 relative" ref={pushOptionsRef}>
+        {/* Popover option */}
+        {showPushOptions && (
+          <div className="absolute bottom-[62px] left-3 right-3 bg-white rounded-[12px] shadow-[0px_4px_20px_0px_rgba(0,28,54,0.15)] border border-[rgba(94,193,106,0.2)] overflow-hidden">
+            <button
+              onClick={handlePushTextOnly}
+              className="w-full flex items-center gap-2 px-4 py-3 text-[14px] text-[#001c36] hover:bg-[rgba(94,193,106,0.08)] transition-colors"
+            >
+              <Send className="w-4 h-4 text-[#5ec16a] shrink-0" />
+              Push mapped notes only (no ICD/CPT)
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-[2px]">
+          {/* Main action */}
+          <button
+            onClick={handlePushToEhr}
+            disabled={!hasMappings}
+            className={`flex items-center justify-center gap-2 flex-1 h-[50px] rounded-l-[80px] text-[16px] font-bold transition-colors ${
+              hasMappings
+                ? "bg-[#5ec16a] text-white hover:bg-[#4aab56]"
+                : "bg-[rgba(94,193,106,0.3)] text-white cursor-not-allowed"
+            }`}
+          >
+            <Send className="w-5 h-5" />
+            Push to EHR
+          </button>
+
+          {/* Divider */}
+          <div className={`w-[1px] h-[50px] ${hasMappings ? "bg-[rgba(255,255,255,0.4)]" : "bg-[rgba(255,255,255,0.2)]"}`} />
+
+          {/* Arrow toggle */}
+          <button
+            onClick={() => hasMappings && setShowPushOptions((v) => !v)}
+            disabled={!hasMappings}
+            className={`flex items-center justify-center w-[48px] h-[50px] rounded-r-[80px] transition-colors ${
+              hasMappings
+                ? "bg-[#5ec16a] text-white hover:bg-[#4aab56]"
+                : "bg-[rgba(94,193,106,0.3)] text-white cursor-not-allowed"
+            }`}
+          >
+            {showPushOptions ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Tab progress bar — 2nd segment active */}
