@@ -1,12 +1,9 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, ClipboardList, User, UserCircle, ChevronDown, Send, CheckCircle2, X } from "lucide-react";
-import { usePatientName } from "@/vimOs/usePatientName";
-import { usePatientDob, formatDob, calculateAge } from "@/vimOs/usePatientDob";
+import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCircle } from "lucide-react";
+import { ScreenHeader } from "./ScreenHeader";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
-
-const imgDemoMic = "https://static.getvim.com/prod/vim-os-appstore/apps/icons/e1e2a9c2-b502-43ee-8501-52fed01c275a.svg";
-import imgMicSelectIcon from "@/assets/icon-mic-select.svg";
+import type { EHR } from "vim-os-js-browser/types";
 
 // EHR field options shown in the mapping dropdown (ICD/CPT handled separately)
 type EhrFieldOption = { label: string; section: string; field: string };
@@ -70,9 +67,6 @@ const TEXT_SECTIONS = [
 type TextSectionKey = (typeof TEXT_SECTIONS)[number]["key"];
 
 interface NotesScreenProps {
-  patientName: string | null;
-  onStartNewRecording: () => void;
-  hasCurrentNote: boolean;
   onTabChange: (tab: "record" | "notes" | "user") => void;
 }
 
@@ -80,12 +74,11 @@ export const NotesScreen = ({
   onTabChange,
 }: NotesScreenProps) => {
   const vimOS = useVimOsContext();
-  const patientNameFromHook = usePatientName();
-  const dateOfBirth = usePatientDob();
   const { watch, register } = useNoteFormContext();
   const currentNote = watch();
   const [pushedCodes, setPushedCodes] = useState<Set<string>>(new Set());
   const [ehrDiagnosisCodes, setEhrDiagnosisCodes] = useState<Set<string>>(new Set());
+  const [pushError, setPushError] = useState<string | null>(null);
 
   // Per-section EHR field mapping
   const [mappings, setMappings] = useState<Record<TextSectionKey, EhrFieldOption | null>>({
@@ -110,14 +103,15 @@ export const NotesScreen = ({
   useEffect(() => {
     const computeAvailable = () => {
       try {
+        type CanUpdateParams = Parameters<typeof vimOS.ehr.resourceUpdater.canUpdateEncounter>[0];
         const canUpdateResult = vimOS.ehr.resourceUpdater.canUpdateEncounter({
-          subjective: { generalNotes: true, chiefComplaintNotes: true, historyOfPresentIllnessNotes: true, reviewOfSystemsNotes: true, medicalHistoryNotes: true, surgicalHistoryNotes: true, hospitalizationNotes: true, familyHistoryNotes: true, socialHistoryNotes: true } as never,
-          objective: { generalNotes: true, physicalExamNotes: true } as never,
-          assessment: { generalNotes: true } as never,
-          plan: { generalNotes: true, nextAppointmentFollowUpNotes: true } as never,
-          encounterNotes: { generalNotes: true } as never,
-          patientInstructions: { generalNotes: true } as never,
-        });
+          subjective: { generalNotes: true, chiefComplaintNotes: true, historyOfPresentIllnessNotes: true, reviewOfSystemsNotes: true, medicalHistoryNotes: true, surgicalHistoryNotes: true, hospitalizationNotes: true, familyHistoryNotes: true, socialHistoryNotes: true },
+          objective: { generalNotes: true, physicalExamNotes: true },
+          assessment: { generalNotes: true },
+          plan: { generalNotes: true, nextAppointmentFollowUpNotes: true },
+          encounterNotes: { generalNotes: true },
+          patientInstructions: { generalNotes: true },
+        } as CanUpdateParams);
         const { details } = canUpdateResult;
         const available = ALL_EHR_OPTIONS.filter((opt) => {
           const sec = (details as Record<string, Record<string, boolean>>)[opt.section];
@@ -136,14 +130,13 @@ export const NotesScreen = ({
   }, [vimOS.ehr.resourceUpdater]);
 
   useEffect(() => {
-    const onEncounterChange = (encounter: { assessment?: { diagnosisCodes?: { code: string }[] } } | undefined) => {
+    const onEncounterChange = (encounter: EHR.Encounter | undefined) => {
       const codes = encounter?.assessment?.diagnosisCodes?.map((d) => d.code) ?? [];
       setEhrDiagnosisCodes(new Set(codes));
     };
-    const current = vimOS.ehr.ehrState?.encounter;
-    onEncounterChange(current as never);
-    vimOS.ehr.subscribe("encounter", onEncounterChange as never);
-    return () => vimOS.ehr.unsubscribe("encounter", onEncounterChange as never);
+    onEncounterChange(vimOS.ehr.ehrState?.encounter as EHR.Encounter | undefined);
+    vimOS.ehr.subscribe("encounter", onEncounterChange);
+    return () => vimOS.ehr.unsubscribe("encounter", onEncounterChange);
   }, [vimOS.ehr]);
 
   useEffect(() => {
@@ -161,6 +154,13 @@ export const NotesScreen = ({
     setOpenDropdown(null);
   };
 
+  type UpdateParams = Parameters<typeof vimOS.ehr.resourceUpdater.updateEncounter>[0];
+
+  const showError = (message: string) => {
+    setPushError(message);
+    setTimeout(() => setPushError(null), 4000);
+  };
+
   const handlePushToEhr = async () => {
     const payload: Record<string, Record<string, string>> = {};
     (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
@@ -171,9 +171,10 @@ export const NotesScreen = ({
     });
     if (Object.keys(payload).length === 0) return;
     try {
-      await vimOS.ehr.resourceUpdater.updateEncounter(payload as never);
+      await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);
     } catch (error) {
       console.error("Failed to push notes to EHR", error);
+      showError("Failed to push notes to EHR. Please try again.");
     }
   };
 
@@ -181,53 +182,36 @@ export const NotesScreen = ({
     try {
       if (type === "icd") {
         await vimOS.ehr.resourceUpdater.updateEncounter({
-          assessment: { diagnosisCodes: [{ code: entry.code, description: entry.description }] } as never,
-        });
+          assessment: { diagnosisCodes: [{ code: entry.code, description: entry.description }] },
+        } as UpdateParams);
       } else {
         await vimOS.ehr.resourceUpdater.updateEncounter({
-          billingInformation: { procedureCodes: [{ code: entry.code, description: entry.description }] } as never,
-        });
+          billingInformation: { procedureCodes: [{ code: entry.code, description: entry.description }] },
+        } as UpdateParams);
       }
       setPushedCodes((prev) => new Set(prev).add(entry.code));
     } catch (error) {
       console.error(`Failed to push ${type.toUpperCase()} code`, error);
+      showError(`Failed to push ${type.toUpperCase()} code to EHR. Please try again.`);
     }
   };
 
   const hasMappings = Object.values(mappings).some(Boolean);
 
   return (
-    <div className="flex flex-col w-full h-full rounded-tl-[20px] overflow-hidden shadow-[-5px_0px_10px_0px_rgba(8,58,107,0.15)]">
-      {/* Compact green header */}
-      <div className="bg-[#5ec16a] flex items-center justify-between px-4 py-3 w-full shrink-0">
-        <div className="flex items-center gap-2 shrink-0">
-          <img src={imgDemoMic} alt="" className="w-5 h-5 shrink-0" style={{ filter: "brightness(0) invert(1)" }} />
-          <span className="text-white text-[14px] font-semibold leading-tight">Ai Scribe Demo</span>
+    <div className="flex flex-col w-full h-full rounded-tl-[20px] overflow-hidden shadow-[-5px_0px_10px_0px_rgba(8,58,107,0.15)] relative">
+      {/* Error toast */}
+      {pushError && (
+        <div className="absolute bottom-[60px] left-3 right-3 z-30 flex items-center gap-2 bg-[#e53935] text-white text-[12px] rounded-[8px] px-3 py-2 shadow-lg animate-fade-in">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{pushError}</span>
+          <button onClick={() => setPushError(null)} className="shrink-0 hover:opacity-70">
+            <X className="w-3.5 h-3.5" />
+          </button>
         </div>
-        <div className="bg-[#f5fdf7] flex items-center gap-1 px-2 py-1 rounded flex-1 mx-3 min-w-0">
-          <UserCircle className="w-3.5 h-3.5 shrink-0 text-[#001c36]" />
-          <p className="text-[#001c36] text-[12px] overflow-hidden text-ellipsis whitespace-nowrap">
-            <span className="font-bold">{patientNameFromHook || "No patient selected"}</span>
-            {dateOfBirth && (
-              <span className="font-normal">
-                {" /  "}{formatDob(dateOfBirth)}{"  /  "}{calculateAge(dateOfBirth)}{" yr"}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="bg-white flex items-center gap-1 px-2 py-1 mr-1 shrink-0">
-          <div className="w-4 h-4 relative shrink-0">
-            <img src={imgMicSelectIcon} alt="" className="absolute" style={{ top: "15.63%", left: "25%", right: "23.72%", bottom: "15.63%", width: "100%", height: "100%" }} />
-          </div>
-          <div className="w-[25px] h-[12px] relative shrink-0">
-            <div className="absolute bg-[#d0d0d0] rounded-full" style={{ left: "44.21%", right: "44.31%", top: 0, bottom: 0 }} />
-            <div className="absolute bg-[#d0d0d0] rounded-full" style={{ left: "65.54%", right: "22.36%", top: "14.29%", bottom: "8.79%" }} />
-            <div className="absolute bg-[#d0d0d0] rounded-full" style={{ left: "22.4%", right: "65.49%", top: "13.58%", bottom: "9.5%" }} />
-            <div className="absolute bg-[#d0d0d0] rounded-full" style={{ left: "87.89%", right: "0", top: "26.92%", bottom: "21.43%" }} />
-            <div className="absolute bg-[#d0d0d0] rounded-full" style={{ left: "0", right: "87.89%", top: "26.92%", bottom: "21.43%" }} />
-          </div>
-        </div>
-      </div>
+      )}
+
+      <ScreenHeader compact />
 
       {/* Accent bar */}
       <div className="bg-[rgba(94,193,106,0.5)] h-[5px] w-full shrink-0" />

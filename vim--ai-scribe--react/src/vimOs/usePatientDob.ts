@@ -10,6 +10,7 @@ export function usePatientDob() {
     const onPatientChange = (patient: EHR.Patient | undefined) => {
       setDateOfBirth(patient?.demographics?.dateOfBirth);
     };
+    onPatientChange(vimOS.ehr.ehrState?.patient as EHR.Patient | undefined);
     vimOS.ehr.subscribe("patient", onPatientChange);
     return () => vimOS.ehr.unsubscribe("patient", onPatientChange);
   }, [vimOS.ehr]);

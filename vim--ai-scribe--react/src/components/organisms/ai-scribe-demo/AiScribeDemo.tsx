@@ -121,6 +121,9 @@ const { watch, reset } = useNoteFormContext();
     setIsSelectingTemplate(true);
   };
 
+  // TODO: Template selection is intentionally a UX demo only — the purpose is to show that
+  // AI Scribe can support different note templates. All selections currently produce the same
+  // mock SOAP note. Per-template output generation is not implemented.
   const handleTemplateSelected = (_template: string) => {
     setIsSelectingTemplate(false);
     stopRecording();
@@ -151,9 +154,6 @@ const { watch, reset } = useNoteFormContext();
     return (
       <div className="flex flex-col h-screen">
         <NotesScreen
-          patientName={visitedPatient}
-          onStartNewRecording={simulateRecording}
-          hasCurrentNote={hasCurrentNote}
           onTabChange={handleTabChange}
         />
       </div>

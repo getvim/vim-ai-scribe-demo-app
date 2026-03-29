@@ -1,4 +1,4 @@
-import { FileText, X } from "lucide-react";
+import { FileText, Plus, X } from "lucide-react";
 
 export const TEMPLATES = [
   "SOAP Note (Including ICD & CPT)",
@@ -56,6 +56,22 @@ export const TemplateSelectModal = ({
               </span>
             </button>
           ))}
+
+          {/* Disabled — template creation is not yet implemented */}
+          <div className="relative group mt-1 border-t border-[rgba(94,193,106,0.2)] pt-3">
+            <button
+              disabled
+              className="flex items-center gap-[5px] w-full text-left opacity-40 cursor-not-allowed rounded px-1 py-0.5"
+            >
+              <Plus className="w-[21px] h-[21px] shrink-0 text-[#001c36]" strokeWidth={1.5} />
+              <span className="text-[#001c36] text-[14px] leading-[1.5]">
+                Create your own template
+              </span>
+            </button>
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 hidden group-hover:block bg-[#001c36] text-white text-[11px] rounded px-2 py-1 whitespace-nowrap pointer-events-none z-10">
+              Coming soon
+            </div>
+          </div>
         </div>
       </div>
     </div>
