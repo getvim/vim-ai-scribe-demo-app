@@ -103,6 +103,8 @@ export const NotesScreen = ({
 
   // Available EHR fields — filtered by canUpdateEncounter, fall back to all
   const [availableFields, setAvailableFields] = useState<EhrFieldOption[]>(ALL_EHR_OPTIONS);
+  const [canPushIcd, setCanPushIcd] = useState(false);
+  const [canPushCpt, setCanPushCpt] = useState(false);
 
   useEffect(() => {
     const computeAvailable = () => {
@@ -111,20 +113,26 @@ export const NotesScreen = ({
         const canUpdateResult = vimOS.ehr.resourceUpdater.canUpdateEncounter({
           subjective: { generalNotes: true, chiefComplaintNotes: true, historyOfPresentIllnessNotes: true, reviewOfSystemsNotes: true, medicalHistoryNotes: true, surgicalHistoryNotes: true, hospitalizationNotes: true, familyHistoryNotes: true, socialHistoryNotes: true },
           objective: { generalNotes: true, physicalExamNotes: true },
-          assessment: { generalNotes: true },
+          assessment: { generalNotes: true, diagnosisCodes: true },
           plan: { generalNotes: true, nextAppointmentFollowUpNotes: true },
           encounterNotes: { generalNotes: true },
           patientInstructions: { generalNotes: true },
+          billingInformation: { procedureCodes: true },
         } as CanUpdateParams);
         const { details } = canUpdateResult;
+        const d = details as Record<string, Record<string, boolean>>;
         const available = ALL_EHR_OPTIONS.filter((opt) => {
-          const sec = (details as Record<string, Record<string, boolean>>)[opt.section];
+          const sec = d[opt.section];
           return sec?.[opt.field] === true;
         });
         // Fall back to all options if none are writable (demo/sandbox context)
         setAvailableFields(available.length > 0 ? available : ALL_EHR_OPTIONS);
+        setCanPushIcd(d.assessment?.diagnosisCodes === true);
+        setCanPushCpt(d.billingInformation?.procedureCodes === true);
       } catch {
         setAvailableFields(ALL_EHR_OPTIONS);
+        setCanPushIcd(false);
+        setCanPushCpt(false);
       }
     };
 
@@ -179,12 +187,13 @@ export const NotesScreen = ({
   const handlePushToEhr = async () => {
     const payload: Record<string, Record<string, unknown>> = {};
 
-    // Add mapped text sections
+    // Add mapped text sections — concatenate if multiple sources map to the same target field
     (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
       if (!opt) return;
       const content = currentNote[key] ?? "";
       if (!payload[opt.section]) payload[opt.section] = {};
-      payload[opt.section][opt.field] = content;
+      const existing = payload[opt.section][opt.field];
+      payload[opt.section][opt.field] = existing ? `${existing}\n\n${content}` : content;
     });
 
     // Add all unpushed ICD codes
@@ -219,11 +228,13 @@ export const NotesScreen = ({
   const handlePushTextOnly = async () => {
     setShowPushOptions(false);
     const payload: Record<string, Record<string, unknown>> = {};
+    // Concatenate if multiple sources map to the same target field
     (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
       if (!opt) return;
       const content = currentNote[key] ?? "";
       if (!payload[opt.section]) payload[opt.section] = {};
-      payload[opt.section][opt.field] = content;
+      const existing = payload[opt.section][opt.field];
+      payload[opt.section][opt.field] = existing ? `${existing}\n\n${content}` : content;
     });
     if (Object.keys(payload).length === 0) return;
     try {
@@ -375,7 +386,7 @@ export const NotesScreen = ({
                       <CheckCircle2 className="w-4 h-4" />
                       Sent
                     </span>
-                  ) : (
+                  ) : canPushIcd ? (
                     <button
                       onClick={() => handlePushCode("icd", entry)}
                       title="Push to EHR"
@@ -383,6 +394,11 @@ export const NotesScreen = ({
                     >
                       <Send className="w-4 h-4" />
                     </button>
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0" title="Open an encounter to push">
+                      <Send className="w-4 h-4 text-[#d0d0d0]" />
+                      <span className="text-[#b0b0b0] text-[10px] italic leading-tight">Open an encounter to push</span>
+                    </div>
                   )}
                 </div>
                 <p className="text-[#001c36] text-[13px] font-semibold leading-[1.4]">{entry.description}</p>
@@ -408,7 +424,7 @@ export const NotesScreen = ({
                       <CheckCircle2 className="w-4 h-4" />
                       Sent
                     </span>
-                  ) : (
+                  ) : canPushCpt ? (
                     <button
                       onClick={() => handlePushCode("cpt", entry)}
                       title="Push to EHR"
@@ -416,6 +432,11 @@ export const NotesScreen = ({
                     >
                       <Send className="w-4 h-4" />
                     </button>
+                  ) : (
+                    <div className="flex items-center gap-1 shrink-0" title="Open an encounter to push">
+                      <Send className="w-4 h-4 text-[#d0d0d0]" />
+                      <span className="text-[#b0b0b0] text-[10px] italic leading-tight">Open an encounter to push</span>
+                    </div>
                   )}
                 </div>
                 <p className="text-[#001c36] text-[13px] font-semibold leading-[1.4]">{entry.description}</p>
