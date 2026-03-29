@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCircle } from "lucide-react";
+import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCircle, Copy } from "lucide-react";
 import { ScreenHeader } from "./ScreenHeader";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
@@ -95,6 +95,7 @@ export const NotesScreen = ({
   });
 
   const [openDropdown, setOpenDropdown] = useState<TextSectionKey | null>(null);
+  const [copiedKey, setCopiedKey] = useState<TextSectionKey | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Available EHR fields — filtered by canUpdateEncounter, fall back to all
@@ -154,6 +155,13 @@ export const NotesScreen = ({
     setOpenDropdown(null);
   };
 
+  const handleCopy = (key: TextSectionKey, content: string) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    });
+  };
+
   type UpdateParams = Parameters<typeof vimOS.ehr.resourceUpdater.updateEncounter>[0];
 
   const showError = (message: string) => {
@@ -162,19 +170,42 @@ export const NotesScreen = ({
   };
 
   const handlePushToEhr = async () => {
-    const payload: Record<string, Record<string, string>> = {};
+    const payload: Record<string, Record<string, unknown>> = {};
+
+    // Add mapped text sections
     (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
       if (!opt) return;
       const content = currentNote[key] ?? "";
       if (!payload[opt.section]) payload[opt.section] = {};
       payload[opt.section][opt.field] = content;
     });
+
+    // Add all unpushed ICD codes
+    const icdToPush = MOCK_ICD_CODES.filter((e) => !ehrDiagnosisCodes.has(e.code) && !pushedCodes.has(e.code));
+    if (icdToPush.length > 0) {
+      if (!payload.assessment) payload.assessment = {};
+      payload.assessment.diagnosisCodes = icdToPush.map((e) => ({ code: e.code, description: e.description }));
+    }
+
+    // Add all unpushed CPT codes
+    const cptToPush = MOCK_CPT_CODES.filter((e) => !pushedCodes.has(e.code));
+    if (cptToPush.length > 0) {
+      payload.billingInformation = { procedureCodes: cptToPush.map((e) => ({ code: e.code, description: e.description })) };
+    }
+
     if (Object.keys(payload).length === 0) return;
     try {
       await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);
+      if (icdToPush.length > 0 || cptToPush.length > 0) {
+        setPushedCodes((prev) => {
+          const next = new Set(prev);
+          [...icdToPush, ...cptToPush].forEach((e) => next.add(e.code));
+          return next;
+        });
+      }
     } catch (error) {
-      console.error("Failed to push notes to EHR", error);
-      showError("Failed to push notes to EHR. Please try again.");
+      console.error("Failed to push to EHR", error);
+      showError("Failed to push to EHR. Please try again.");
     }
   };
 
@@ -197,6 +228,9 @@ export const NotesScreen = ({
   };
 
   const hasMappings = Object.values(mappings).some(Boolean);
+  const hasUnpushedIcd = MOCK_ICD_CODES.some((e) => !ehrDiagnosisCodes.has(e.code) && !pushedCodes.has(e.code));
+  const hasUnpushedCpt = MOCK_CPT_CODES.some((e) => !pushedCodes.has(e.code));
+  const hasAnythingToPush = hasMappings || hasUnpushedIcd || hasUnpushedCpt;
 
   return (
     <div className="flex flex-col w-full h-full rounded-tl-[20px] overflow-hidden shadow-[-5px_0px_10px_0px_rgba(8,58,107,0.15)] relative">
@@ -265,12 +299,26 @@ export const NotesScreen = ({
                 </div>
               )}
 
-              <textarea
-                {...register(key)}
-                rows={key === "subjectiveChiefComplaint" ? 1 : Math.max(3, Math.min(12, (content.match(/\n/g) || []).length + Math.ceil(content.length / 60)))}
-                className="w-full border border-[rgba(94,193,106,0.5)] rounded-[10px] p-3 text-[14px] text-[#001c36] leading-[1.6] resize-none focus:outline-none focus:border-[#5ec16a] focus:ring-1 focus:ring-[rgba(94,193,106,0.3)]"
-                placeholder={`Enter ${title.toLowerCase()} notes...`}
-              />
+              <div className="relative">
+                <textarea
+                  {...register(key)}
+                  rows={key === "subjectiveChiefComplaint" ? 1 : Math.max(3, Math.min(12, (content.match(/\n/g) || []).length + Math.ceil(content.length / 60)))}
+                  className="w-full border border-[rgba(94,193,106,0.5)] rounded-[10px] p-3 pr-8 text-[14px] text-[#001c36] leading-[1.6] resize-none focus:outline-none focus:border-[#5ec16a] focus:ring-1 focus:ring-[rgba(94,193,106,0.3)]"
+                  placeholder={`Enter ${title.toLowerCase()} notes...`}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleCopy(key, content)}
+                  className="absolute top-2 right-2 p-0.5 text-[#828282] hover:text-[#5ec16a] transition-colors"
+                  title="Copy to clipboard"
+                >
+                  {copiedKey === key ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#5ec16a]" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
           );
         })}
@@ -353,9 +401,9 @@ export const NotesScreen = ({
       <div className="bg-white px-3 py-2 shrink-0">
         <button
           onClick={handlePushToEhr}
-          disabled={!hasMappings}
+          disabled={!hasAnythingToPush}
           className={`flex items-center justify-center gap-2 w-full h-[50px] rounded-[80px] text-[16px] font-bold transition-colors ${
-            hasMappings
+            hasAnythingToPush
               ? "bg-[#5ec16a] text-white hover:bg-[#4aab56]"
               : "bg-[rgba(94,193,106,0.3)] text-white cursor-not-allowed"
           }`}
