@@ -184,10 +184,8 @@ export const NotesScreen = ({
     setTimeout(() => setPushError(null), 4000);
   };
 
-  const handlePushToEhr = async () => {
+  const buildTextPayload = () => {
     const payload: Record<string, Record<string, unknown>> = {};
-
-    // Add mapped text sections — concatenate if multiple sources map to the same target field
     (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
       if (!opt) return;
       const content = currentNote[key] ?? "";
@@ -195,16 +193,24 @@ export const NotesScreen = ({
       const existing = payload[opt.section][opt.field];
       payload[opt.section][opt.field] = existing ? `${existing}\n\n${content}` : content;
     });
+    return payload;
+  };
 
-    // Add all unpushed ICD codes
-    const icdToPush = MOCK_ICD_CODES.filter((e) => !ehrDiagnosisCodes.has(e.code) && !pushedCodes.has(e.code));
+  const handlePushToEhr = async () => {
+    const payload = buildTextPayload();
+
+    // Only include ICD/CPT if the EHR supports writing them
+    const icdToPush = canPushIcd
+      ? MOCK_ICD_CODES.filter((e) => !ehrDiagnosisCodes.has(e.code) && !pushedCodes.has(e.code))
+      : [];
     if (icdToPush.length > 0) {
       if (!payload.assessment) payload.assessment = {};
       payload.assessment.diagnosisCodes = icdToPush.map((e) => ({ code: e.code, description: e.description }));
     }
 
-    // Add all unpushed CPT codes
-    const cptToPush = MOCK_CPT_CODES.filter((e) => !pushedCodes.has(e.code));
+    const cptToPush = canPushCpt
+      ? MOCK_CPT_CODES.filter((e) => !pushedCodes.has(e.code))
+      : [];
     if (cptToPush.length > 0) {
       payload.billingInformation = { procedureCodes: cptToPush.map((e) => ({ code: e.code, description: e.description })) };
     }
@@ -227,15 +233,7 @@ export const NotesScreen = ({
 
   const handlePushTextOnly = async () => {
     setShowPushOptions(false);
-    const payload: Record<string, Record<string, unknown>> = {};
-    // Concatenate if multiple sources map to the same target field
-    (Object.entries(mappings) as [TextSectionKey, EhrFieldOption | null][]).forEach(([key, opt]) => {
-      if (!opt) return;
-      const content = currentNote[key] ?? "";
-      if (!payload[opt.section]) payload[opt.section] = {};
-      const existing = payload[opt.section][opt.field];
-      payload[opt.section][opt.field] = existing ? `${existing}\n\n${content}` : content;
-    });
+    const payload = buildTextPayload();
     if (Object.keys(payload).length === 0) return;
     try {
       await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);

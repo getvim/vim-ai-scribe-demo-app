@@ -87,7 +87,7 @@ export const AiScribeDemo = () => {
   const patientName = usePatientName();
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSelectingTemplate, setIsSelectingTemplate] = useState(false);
-const { watch, reset } = useNoteFormContext();
+  const { watch, reset } = useNoteFormContext();
   const {
     isPaused,
     setIsPaused,
