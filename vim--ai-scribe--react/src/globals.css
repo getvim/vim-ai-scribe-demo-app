@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes audioBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes ringPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.94); }
+}
+
+.animate-audio-bar {
+  animation: audioBar 0.8s ease-in-out infinite;
+}
+
+.animate-ring-pulse {
+  animation: ringPulse 1.8s ease-in-out infinite;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

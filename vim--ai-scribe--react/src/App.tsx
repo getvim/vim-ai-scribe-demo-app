@@ -39,7 +39,7 @@ export const App = () => {
   useSetAppEnabled();
 
   return (
-    <div className="w-full pb-6">
+    <div className="w-full h-screen">
       <AiScribeDemo />
     </div>
   );
