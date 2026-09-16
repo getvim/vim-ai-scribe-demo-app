@@ -3,7 +3,7 @@ import { Mic, ClipboardList, User, ChevronDown, Send, CheckCircle2, X, AlertCirc
 import { ScreenHeader } from "./ScreenHeader";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { useVimOsContext } from "@/providers/VimOSContext";
-import type { EHR } from "vim-os-js-browser/types";
+import type { Encounter } from "@vimconnect/app-sdk";
 
 // EHR field options shown in the mapping dropdown (ICD/CPT handled separately)
 type EhrFieldOption = { label: string; section: string; field: string };
@@ -78,7 +78,7 @@ export const NotesScreen = ({
   const currentNote = watch();
   const [pushedCodes, setPushedCodes] = useState<Set<string>>(new Set());
   const [ehrDiagnosisCodes, setEhrDiagnosisCodes] = useState<Set<string>>(new Set());
-  const [hasEncounter, setHasEncounter] = useState<boolean>(!!vimOS.ehr.ehrState?.encounter);
+  const [hasEncounter, setHasEncounter] = useState<boolean>(false);
   const [pushError, setPushError] = useState<string | null>(null);
 
   // Per-section EHR field mapping
@@ -106,51 +106,34 @@ export const NotesScreen = ({
   const [canPushIcd, setCanPushIcd] = useState(false);
   const [canPushCpt, setCanPushCpt] = useState(false);
 
-  useEffect(() => {
-    const computeAvailable = () => {
-      try {
-        type CanUpdateParams = Parameters<typeof vimOS.ehr.resourceUpdater.canUpdateEncounter>[0];
-        const canUpdateResult = vimOS.ehr.resourceUpdater.canUpdateEncounter({
-          subjective: { generalNotes: true, chiefComplaintNotes: true, historyOfPresentIllnessNotes: true, reviewOfSystemsNotes: true, medicalHistoryNotes: true, surgicalHistoryNotes: true, hospitalizationNotes: true, familyHistoryNotes: true, socialHistoryNotes: true },
-          objective: { generalNotes: true, physicalExamNotes: true },
-          assessment: { generalNotes: true, diagnosisCodes: true },
-          plan: { generalNotes: true, nextAppointmentFollowUpNotes: true },
-          encounterNotes: { generalNotes: true },
-          patientInstructions: { generalNotes: true },
-          billingInformation: { procedureCodes: true },
-        } as CanUpdateParams);
-        const { details } = canUpdateResult;
-        const d = details as Record<string, Record<string, boolean>>;
-        const available = ALL_EHR_OPTIONS.filter((opt) => {
-          const sec = d[opt.section];
-          return sec?.[opt.field] === true;
-        });
-        // Fall back to all options if none are writable (demo/sandbox context)
-        setAvailableFields(available.length > 0 ? available : ALL_EHR_OPTIONS);
-        setCanPushIcd(d.assessment?.diagnosisCodes === true);
-        setCanPushCpt(d.billingInformation?.procedureCodes === true);
-      } catch {
+  // Legacy canUpdateEncounter returned a per-field writability map, which filtered this
+  // list. app-sdk's ContextWriteback exposes availability per ENTITY only, so every mapped
+  // field is offered whenever the encounter is updatable — the same degrade the legacy code
+  // already fell back to when nothing reported writable.
+  useEffect(
+    () =>
+      vimOS.ehr.context.getUpdatableEntities((entities) => {
+        const encounterUpdatable = Boolean(entities.encounter);
         setAvailableFields(ALL_EHR_OPTIONS);
-        setCanPushIcd(false);
-        setCanPushCpt(false);
-      }
-    };
+        setCanPushIcd(encounterUpdatable);
+        setCanPushCpt(encounterUpdatable);
+      }),
+    [vimOS]
+  );
 
-    computeAvailable();
-    vimOS.ehr.resourceUpdater.subscribe("encounter", computeAvailable);
-    return () => vimOS.ehr.resourceUpdater.unsubscribe("encounter", computeAvailable);
-  }, [vimOS.ehr.resourceUpdater]);
-
-  useEffect(() => {
-    const onEncounterChange = (encounter: EHR.Encounter | undefined) => {
-      setHasEncounter(!!encounter);
-      const codes = encounter?.assessment?.diagnosisCodes?.map((d) => d.code) ?? [];
-      setEhrDiagnosisCodes(new Set(codes));
-    };
-    onEncounterChange(vimOS.ehr.ehrState?.encounter as EHR.Encounter | undefined);
-    vimOS.ehr.subscribe("encounter", onEncounterChange);
-    return () => vimOS.ehr.unsubscribe("encounter", onEncounterChange);
-  }, [vimOS.ehr]);
+  useEffect(
+    () =>
+      vimOS.ehr.context.onChange(
+        "encounter_open:encounter",
+        (_previous, encounter) => {
+          setHasEncounter(!!encounter);
+          const codes =
+            encounter?.assessment?.diagnoses?.map((d) => d.code) ?? [];
+          setEhrDiagnosisCodes(new Set(codes.filter(Boolean) as string[]));
+        }
+      ),
+    [vimOS]
+  );
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -177,7 +160,29 @@ export const NotesScreen = ({
     });
   };
 
-  type UpdateParams = Parameters<typeof vimOS.ehr.resourceUpdater.updateEncounter>[0];
+  type UpdateParams = Partial<Encounter>;
+
+  /** Writes must clear the capability and permission gates before update() is called. */
+  const pushEncounter = async (payload: UpdateParams) => {
+    const encounter = vimOS.ehr.context.encounter;
+
+    const capability = encounter.getCapability("update");
+    if (!capability.available) {
+      throw new Error(capability.reason ?? "encounter writeback unavailable");
+    }
+
+    if (!encounter.hasPermission("update")) {
+      if (capability.permissionState === "denied") {
+        throw new Error("encounter writeback denied");
+      }
+      const granted = await encounter.requestPermission("update", {
+        fields: Object.keys(payload),
+      });
+      if (granted !== "granted") throw new Error("encounter writeback denied");
+    }
+
+    return encounter.update(payload, { mode: "merge" });
+  };
 
   const showError = (message: string) => {
     setPushError(message);
@@ -205,7 +210,7 @@ export const NotesScreen = ({
       : [];
     if (icdToPush.length > 0) {
       if (!payload.assessment) payload.assessment = {};
-      payload.assessment.diagnosisCodes = icdToPush.map((e) => ({ code: e.code, description: e.description }));
+      payload.assessment.diagnoses = icdToPush.map((e) => ({ code: e.code, description: e.description }));
     }
 
     const cptToPush = canPushCpt
@@ -217,7 +222,7 @@ export const NotesScreen = ({
 
     if (Object.keys(payload).length === 0) return;
     try {
-      await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);
+      await pushEncounter(payload as UpdateParams);
       if (icdToPush.length > 0 || cptToPush.length > 0) {
         setPushedCodes((prev) => {
           const next = new Set(prev);
@@ -236,7 +241,7 @@ export const NotesScreen = ({
     const payload = buildTextPayload();
     if (Object.keys(payload).length === 0) return;
     try {
-      await vimOS.ehr.resourceUpdater.updateEncounter(payload as UpdateParams);
+      await pushEncounter(payload as UpdateParams);
     } catch (error) {
       console.error("Failed to push notes to EHR", error);
       showError("Failed to push notes to EHR. Please try again.");
@@ -246,11 +251,11 @@ export const NotesScreen = ({
   const handlePushCode = async (type: "icd" | "cpt", entry: CodeEntry) => {
     try {
       if (type === "icd") {
-        await vimOS.ehr.resourceUpdater.updateEncounter({
-          assessment: { diagnosisCodes: [{ code: entry.code, description: entry.description }] },
+        await pushEncounter({
+          assessment: { diagnoses: [{ code: entry.code, description: entry.description }] },
         } as UpdateParams);
       } else {
-        await vimOS.ehr.resourceUpdater.updateEncounter({
+        await pushEncounter({
           billingInformation: { procedureCodes: [{ code: entry.code, description: entry.description }] },
         } as UpdateParams);
       }

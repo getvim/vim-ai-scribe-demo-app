@@ -1,21 +1,7 @@
-import { useVimOsContext } from "@/providers/VimOSContext";
-import { EHR } from "vim-os-js-browser/types";
-import { useEffect, useState } from "react";
+import { usePatient } from "./usePatient";
 
 export function usePatientDob() {
-  const vimOS = useVimOsContext();
-  const [dateOfBirth, setDateOfBirth] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    const onPatientChange = (patient: EHR.Patient | undefined) => {
-      setDateOfBirth(patient?.demographics?.dateOfBirth);
-    };
-    onPatientChange(vimOS.ehr.ehrState?.patient as EHR.Patient | undefined);
-    vimOS.ehr.subscribe("patient", onPatientChange);
-    return () => vimOS.ehr.unsubscribe("patient", onPatientChange);
-  }, [vimOS.ehr]);
-
-  return dateOfBirth;
+  return usePatient()?.demographics?.dateOfBirth;
 }
 
 /** Format "YYYY-MM-DD" → "Jan 14, 1983" */

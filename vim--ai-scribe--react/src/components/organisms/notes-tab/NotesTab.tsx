@@ -1,4 +1,5 @@
 import { useNoteFormContext } from "@/providers/NoteFormContext";
+import { setDynamicAppSizeUnsupported } from "@/vimOs/unsupported";
 import { useVimOsContext } from "@/providers/VimOSContext";
 import { useState } from "react";
 import { Button } from "../../atoms/Button";
@@ -33,7 +34,7 @@ export const NotesTab = ({
 
   const toggleDebugMode = () => {
     setIsDebugMode(!isDebugMode);
-    vimOS.hub.setDynamicAppSize(isDebugMode ? "CLASSIC" : "LARGE");
+    setDynamicAppSizeUnsupported(isDebugMode ? "CLASSIC" : "LARGE");
   };
 
   return (

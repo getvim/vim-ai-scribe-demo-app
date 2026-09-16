@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useController } from "react-hook-form";
 import { Copy, Edit2, Save } from "lucide-react";
 import { useNoteFormContext } from "@/providers/NoteFormContext";
+import { copyToClipboardUnsupported } from "@/vimOs/unsupported";
 import { useVimOsContext } from "@/providers/VimOSContext";
 import { Button } from "../atoms/Button";
 import { IconButton } from "../atoms/IconButton";
@@ -51,7 +52,7 @@ export const SoapSection = ({
   }, [value]);
 
   const handleCopyToClipboard = (): void => {
-    vimOS.utils.copyToClipboard(value);
+    copyToClipboardUnsupported(value);
 
     try {
       vimOS.hub.pushNotification.show({

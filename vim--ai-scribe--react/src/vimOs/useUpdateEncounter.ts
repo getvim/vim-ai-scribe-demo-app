@@ -1,136 +1,90 @@
-import { useEffect, useMemo, useState } from "react";
-import type { EHR } from "vim-os-js-browser/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Encounter } from "@vimconnect/app-sdk";
 import { useVimOsContext } from "@/providers/VimOSContext";
 
-type SectionField<T extends keyof EHR.UpdateEncounterParams> =
-  keyof NonNullable<EHR.UpdateEncounterParams[T]>;
+/** Encounter sections this app writes. Each field verified against the collection. */
+export type EncounterSection = "subjective" | "objective" | "assessment" | "plan";
 
-type SectionFields<T extends keyof EHR.UpdateEncounterParams> = Array<
-  SectionField<T>
->;
+type SectionField<S extends EncounterSection> = keyof NonNullable<Encounter[S]>;
 
-const calcIsUpdatable = <T extends keyof EHR.UpdateEncounterParams>(
-  sectionName: T,
-  priorityList: SectionFields<T>,
-  details: EHR.CanUpdateEncounterParams
-): SectionField<T> | undefined => {
-  if (sectionName && priorityList) {
-    const section = details[sectionName];
-    if (!section) {
-      return undefined;
-    }
-    const updatableField = priorityList.find(
-      (fieldName) => section[fieldName] === true
-    );
-
-    return updatableField;
-  }
-};
-
-export const useUpdateEncounterSubscription = <
-  T extends keyof EHR.UpdateEncounterParams
->(
-  sectionName: T,
-  priorityList: SectionFields<T>
+/**
+ * Legacy `canUpdateEncounter({ section: { field: true } })` returned a nested map saying
+ * which fields were writable, and the UI picked the first writable one from a priority
+ * list. `@vimconnect/app-sdk` types `ehr.context.encounter` as `ContextWriteback`, whose
+ * `getCapability('update')` takes no field argument — availability is per entity, not per
+ * field. So the priority list now only chooses which field to WRITE, not whether the
+ * section is writable at all.
+ *
+ * Field-scoped capability does exist on core-sdk's `ContextWritebackNamespace`; it is not
+ * reachable through app-sdk's exported types in 0.4.58. Revisit if that changes.
+ */
+export const useUpdateEncounterSubscription = <S extends EncounterSection>(
+  sectionName: S,
+  priorityList: Array<SectionField<S>>
 ) => {
   const vimOS = useVimOsContext();
-  const [canUpdateSubscriptionParams, setCanUpdateSubscriptionParams] =
-    useState<boolean>(false);
-  const [subscriptionUpdatableField, setSubscriptionUpdatableField] =
-    useState<SectionField<T>>();
+  const [canUpdate, setCanUpdate] = useState(false);
 
-  useEffect(() => {
-    const onUpdate = () => {
-      const { details } = vimOS.ehr.resourceUpdater.canUpdateEncounter({
-        [sectionName]: priorityList.reduce(
-          (acc, field) => ({
-            ...acc,
-            [field]: true,
-          }),
-          {}
-        ),
-      });
-      const updatableField = calcIsUpdatable(
-        sectionName,
-        priorityList,
-        details
-      );
-      const canUpdate = updatableField !== undefined;
-      setCanUpdateSubscriptionParams(canUpdate);
-      setSubscriptionUpdatableField(updatableField);
-    };
-
-    vimOS.ehr.resourceUpdater.subscribe("encounter", onUpdate);
-
-    return () => vimOS.ehr.resourceUpdater.unsubscribe("encounter", onUpdate);
-  }, [priorityList, sectionName, vimOS.ehr.resourceUpdater]);
-
-  // Expose flag, field to update & update function
-  return useMemo(
-    () => ({
-      canUpdateSubscriptionParams,
-      subscriptionUpdatableField,
-      updateSubscriptionField: (content: string) => {
-        if (!sectionName || !canUpdateSubscriptionParams) {
-          return;
-        }
-
-        vimOS.ehr.resourceUpdater
-          .updateEncounter({
-            [sectionName]: {
-              [subscriptionUpdatableField as string]: content,
-            },
-          })
-          .then(() => {
-            console.log({
-              variant: "default",
-              title: "Encounter notes updated!",
-            });
-          })
-          .catch((error) => {
-            console.log({
-              variant: "destructive",
-              title: "Uh oh! Something went wrong.",
-              sectionName,
-              subscriptionUpdatableField,
-              description: error ? JSON.stringify(error) : "An error occurred.",
-            });
-          });
-      },
-    }),
-    [
-      canUpdateSubscriptionParams,
-      sectionName,
-      subscriptionUpdatableField,
-      vimOS.ehr.resourceUpdater,
-    ]
+  useEffect(
+    () =>
+      vimOS.ehr.context.getUpdatableEntities((entities) =>
+        setCanUpdate(Boolean(entities.encounter))
+      ),
+    [vimOS]
   );
-};
 
-export const useUpdateEncounter = () => {
-  const vimOS = useVimOsContext();
+  const targetField = priorityList[0];
+
+  const updateSubscriptionField = useCallback(
+    async (content: string) => {
+      if (!targetField || !canUpdate) return;
+
+      const encounter = vimOS.ehr.context.encounter;
+      const fieldPath = `${sectionName}.${String(targetField)}`;
+
+      const capability = encounter.getCapability("update");
+      if (!capability.available) {
+        console.warn("encounter writeback unavailable", capability.reason);
+        return;
+      }
+
+      if (!encounter.hasPermission("update")) {
+        if (capability.permissionState === "denied") return;
+        const granted = await encounter.requestPermission("update", {
+          fields: [fieldPath],
+        });
+        if (granted !== "granted") return;
+      }
+
+      try {
+        const result = await encounter.update(
+          { [sectionName]: { [targetField]: content } } as Partial<Encounter>,
+          { mode: "merge" }
+        );
+        // success with no updatedFields means the EHR already held this value.
+        console.log({
+          title: result.success
+            ? "Encounter notes updated!"
+            : "Encounter update rejected",
+          updatedFields: result.updatedFields ?? [],
+        });
+      } catch (error) {
+        console.log({
+          title: "Uh oh! Something went wrong.",
+          fieldPath,
+          description: error ? JSON.stringify(error) : "An error occurred.",
+        });
+      }
+    },
+    [canUpdate, sectionName, targetField, vimOS]
+  );
 
   return useMemo(
     () => ({
-      // Direct API call to update encounter notes
-      checkCanUpdate: vimOS.ehr.resourceUpdater.canUpdateEncounter,
-      updateEncounter: (payload: EHR.UpdateEncounterParams) =>
-        vimOS.ehr.resourceUpdater
-          .updateEncounter(payload)
-          .then(() => {
-            console.log({
-              variant: "default",
-              title: "Encounter notes updated!",
-            });
-          })
-          .catch((error) => {
-            console.log({
-              variant: "destructive",
-              title: "Uh oh! Something went wrong.",
-              description: error ? JSON.stringify(error) : "An error occurred.",
-            });
-          }),
+      canUpdateSubscriptionParams: canUpdate,
+      subscriptionUpdatableField: targetField,
+      updateSubscriptionField,
     }),
-    [vimOS.ehr.resourceUpdater]
+    [canUpdate, targetField, updateSubscriptionField]
   );
 };

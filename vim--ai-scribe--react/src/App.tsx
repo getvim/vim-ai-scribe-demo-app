@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { ActivationStatus } from "@vimconnect/app-sdk";
 import { useVimOsContext } from "./providers/VimOSContext";
 import { AiScribeDemo } from "./components/organisms/ai-scribe-demo/AiScribeDemo";
 import "globals";
@@ -30,7 +31,7 @@ const useSetAppEnabled = () => {
   const vimOs = useVimOsContext();
 
   useEffect(() => {
-    vimOs.hub.setActivationStatus("ENABLED");
+    vimOs.hub.setActivationStatus(ActivationStatus.ENABLED);
   }, [vimOs]);
 };
 

@@ -1,4 +1,5 @@
 import { useNoteFormContext } from "@/providers/NoteFormContext";
+import { setDynamicAppSizeUnsupported } from "@/vimOs/unsupported";
 import { useVimOsContext } from "@/providers/VimOSContext";
 import { useState } from "react";
 import { NotesScreen } from "./NotesScreen";
@@ -109,7 +110,7 @@ export const AiScribeDemo = () => {
       return;
     }
     setActiveTab(tab);
-    vimOS.hub.setDynamicAppSize("CLASSIC");
+    setDynamicAppSizeUnsupported("CLASSIC");
   };
 
   const handlePausePlay = () => {

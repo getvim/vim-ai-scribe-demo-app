@@ -1,14 +1,12 @@
-import { useVimOsContext } from "@/providers/VimOSContext";
-
 /**
- * Securely fetches the current user's first and last name using the VimOS SDK session context.
- * Does not expose sensitive error details. Only returns first and last name.
+ * GAP — not migrated. The legacy SDK exposed the signed-in user's name at
+ * `sessionContext.user.demographics`. The Vim Connect `sessionContext` carries only
+ * `sessionId`, `deviceId`, `userId` (a UUID), `account` and `ehrType` — there is no name.
  *
- * @returns { providerName, loading }
+ * `ehr.api.provider.getById()` and `encounter.provider` give the EHR provider on the
+ * record, which is a different thing from the logged-in Vim user and may not be the same
+ * person. Picking one is a product decision, so this returns nothing until someone makes it.
  */
-export function useProviderName() {
-  const vimOS = useVimOsContext();
-
-  const { firstName, lastName } = vimOS.sessionContext.user.demographics || {};
-  return [firstName, lastName].filter(Boolean).join(" ");
+export function useProviderName(): string {
+  return "";
 }
