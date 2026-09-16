@@ -1,6 +1,5 @@
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { setDynamicAppSizeUnsupported } from "@/vimOs/unsupported";
-import { useVimOsContext } from "@/providers/VimOSContext";
 import { useState } from "react";
 import { Button } from "../../atoms/Button";
 import { DebugView } from "../../templates/DebugView";
@@ -17,7 +16,6 @@ export const NotesTab = ({
   handleFullEhrUpdate: () => Promise<void>;
   renderHighlightedText: (text: string) => JSX.Element;
 }) => {
-  const vimOS = useVimOsContext();
   const [isDebugMode, setIsDebugMode] = useState(false);
   const [hoveredSegment, setHoveredSegment] = useState<number | null>(null);
   const { watch } = useNoteFormContext();

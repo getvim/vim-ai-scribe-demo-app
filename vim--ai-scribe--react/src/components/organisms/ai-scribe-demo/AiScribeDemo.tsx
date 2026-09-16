@@ -1,6 +1,5 @@
 import { useNoteFormContext } from "@/providers/NoteFormContext";
 import { setDynamicAppSizeUnsupported } from "@/vimOs/unsupported";
-import { useVimOsContext } from "@/providers/VimOSContext";
 import { useState } from "react";
 import { NotesScreen } from "./NotesScreen";
 import { RecordingScreen } from "./RecordingScreen";
@@ -48,7 +47,6 @@ const RECORDING_RESULT = {
 type TabType = "record" | "notes" | "user";
 
 export const AiScribeDemo = () => {
-  const vimOS = useVimOsContext();
   const [activeTab, setActiveTab] = useState<TabType>("record");
   const [notes, setNotes] = useState<Note[]>([
     {

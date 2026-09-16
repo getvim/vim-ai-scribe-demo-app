@@ -128,7 +128,7 @@ export const NotesScreen = ({
         (_previous, encounter) => {
           setHasEncounter(!!encounter);
           const codes =
-            encounter?.assessment?.diagnoses?.map((d) => d.code) ?? [];
+            encounter?.fields.assessment?.diagnoses?.map((d) => d.code) ?? [];
           setEhrDiagnosisCodes(new Set(codes.filter(Boolean) as string[]));
         }
       ),
