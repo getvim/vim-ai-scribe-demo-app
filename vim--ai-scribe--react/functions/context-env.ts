@@ -5,5 +5,6 @@ export interface Env {
   VIM_TOKEN_ENDPOINT?: string;
   VIM_AUTHORIZE_ENDPOINT?: string;
   VIM_ISSUER?: string;
+  VIM_JWKS_URL?: string;
   CLIENT_SECRET_FALLBACK?: string;
 }

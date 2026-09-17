@@ -1,4 +1,4 @@
-import { parseJwt } from "@cfworker/jwt";
+import { getKey, importKey, parseJwt } from "@cfworker/jwt";
 import { Env } from "../context-env";
 
 /** NOTE: Route is `/api/token` */
@@ -40,7 +40,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       !(await isAuthorized(
         tokenData,
         context.env.CLIENT_ID,
-        context.env.VIM_ISSUER
+        context.env.VIM_ISSUER,
+        context.env.VIM_JWKS_URL
       ))
     ) {
       return new Response("", {
@@ -59,16 +60,47 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   }
 };
 
+const VIM_JWKS_URL = "https://api.getvim.ai/app-auth/.well-known/jwks.json";
+
+let primed: Promise<void> | null = null;
+
+/**
+ * Vim serves its JWKS under a different host than the token's `iss`, so
+ * @cfworker/jwt's default resolver looks in the wrong place. Load the keys into
+ * its cache under the issuer the token actually carries.
+ */
+function primeVimKeys(iss: string, jwksUrl: string): Promise<void> {
+  primed ??= (async () => {
+    const response = await fetch(jwksUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Error loading jwks at ${jwksUrl}. ${response.status} ${response.statusText}`
+      );
+    }
+    const { keys } = await response.json<{ keys: JsonWebKey[] }>();
+    await Promise.all(keys.map((jwk) => importKey(iss, jwk)));
+  })().catch((error) => {
+    primed = null;
+    throw error;
+  });
+  return primed;
+}
+
 async function isAuthorized(
   vimTokenData,
   clientId: string,
-  vimIssuer = "https://connect.getvim.ai"
+  vimIssuer = "https://connect.getvim.ai",
+  jwksUrl = VIM_JWKS_URL
 ) {
   try {
     const decodedIdToken = await parseJwt({
       jwt: vimTokenData.id_token,
       issuer: vimIssuer,
       audience: clientId,
+      resolveKey: async (decoded) => {
+        await primeVimKeys(decoded.payload.iss, jwksUrl);
+        return getKey(decoded);
+      },
     });
     if (decodedIdToken.valid) {
       // If identification data on token is not sufficient userinfo endpoint can be used...
