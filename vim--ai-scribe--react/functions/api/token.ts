@@ -4,7 +4,7 @@ import { Env } from "../context-env";
 /** NOTE: Route is `/api/token` */
 async function getToken(context, code: string, client_secret: string) {
   return fetch(
-    context.env.VIM_TOKEN_ENDPOINT ?? "https://api.getvim.com/v1/oauth/token",
+    context.env.VIM_TOKEN_ENDPOINT ?? "https://api.getvim.ai/app-auth/token",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -62,7 +62,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 async function isAuthorized(
   vimTokenData,
   clientId: string,
-  vimIssuer = "https://auth.getvim.com/"
+  vimIssuer = "https://connect.getvim.ai"
 ) {
   try {
     const decodedIdToken = await parseJwt({
