@@ -27,3 +27,4 @@ functions/**/*.js
 *.sln
 *.sw?
 *.tsbuildinfo
+.dev.vars-*

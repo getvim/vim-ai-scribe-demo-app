@@ -7,6 +7,8 @@
     "dev:vite": "vite",
     "dev:functions": "wrangler pages dev --proxy=5173",
     "dev": "concurrently --raw -i \"npm:dev:functions\" \"npm:dev:vite\" ",
+    "dev:local": "node -e \"require('fs').copyFileSync('.dev.vars-local','.dev.vars')\" && npm run dev",
+    "dev:prod": "node -e \"require('fs').copyFileSync('.dev.vars-prod','.dev.vars')\" && npm run dev",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
