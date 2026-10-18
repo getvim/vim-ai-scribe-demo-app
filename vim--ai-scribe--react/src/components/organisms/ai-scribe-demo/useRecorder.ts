@@ -35,6 +35,13 @@ export const useRecorder = () => {
     }
   }, [vimOS]);
 
+  // Allowing the microphone the first time reloads the app; resume the recording that asked.
+  useEffect(() => {
+    const hub = vimOS?.hub as { consumeGrantedDevices?: () => string[] } | undefined;
+    if (hub?.consumeGrantedDevices?.().includes("microphone")) void simulateRecording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the first mount after the reload
+  }, []);
+
   const stopRecording = useCallback(() => {
     if (stream) {
       stream.getTracks().forEach((track) => track.stop());
